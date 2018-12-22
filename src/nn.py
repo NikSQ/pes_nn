@@ -14,7 +14,7 @@ class NN:
         self.train_op = None
         self.atomic_nns = []
 
-        for atomic_nn_idx, atomic_nn_config in enumerate(self.nn_config):
+        for atomic_nn_idx, atomic_nn_config in enumerate(self.nn_config['atomic_configs']):
             self.atomic_nns.append(AtomicNN(atomic_nn_config, train_config, datasets, atomic_nn_idx))
 
     def create_nn_graph(self, data_key):

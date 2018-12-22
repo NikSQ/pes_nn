@@ -5,6 +5,7 @@ import tensorflow as tf
 # TODO: Allow option to take the gradient w.r.t. to input of training and / or candidate set
 # TODO: Add symmetry operators (descriptors)
 
+
 class DatasetContainer:
     def __init__(self, data_config, data_dict):
         with tf.variable_scope('datasets'):

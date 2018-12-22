@@ -10,6 +10,8 @@ def get_initializer(init_scheme, shape):
         init_vals = np.random.randn(shape[0], shape[1]) * np.sqrt(2/sum(shape))
     elif init_scheme == 'zeros':
         init_vals = np.zeros(shape)
+    elif type(init_scheme) is float:
+        init_vals = np.ones(shape) * init_scheme
     else:
         raise Exception('{} is not a valid initialization scheme'.format(init_scheme))
     return tf.constant_initializer(init_vals)
@@ -66,7 +68,7 @@ class FCLayer:
             raise Exception('Activation function {} not supported'.format(self.layer_config['act_func']))
 
     # Creates a forward pass using the local reparametrization trick. Mean and standard deviation of the distribution of
-    # activations is calculated, then sampled from and the sample is passed through the activation function
+    # activations is calculated, then sampled from, and the sample is passed through the activation function
     def create_lr_fp(self, x):
         mean = tf.matmul(x, self.w_m) + self.b_m
         std = tf.sqrt(tf.matmul(tf.sqrt(x), self.w_v) + self.b_v)

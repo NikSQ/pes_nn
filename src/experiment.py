@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.python.client import timeline
+from src.data_loader import load
 from src.datasets import DatasetContainer
 from src.nn import NN
 
@@ -17,9 +18,11 @@ class Experiment:
         model_path = '../models/' + self.info_config['filename'] + '_' + str(self.train_config['task_id'])
         model_saver = tf.train.Saver(tf.trainable_variables())
 
-        current_epoch = 0
         max_epochs = self.train_config['max_epochs']
         min_error = self.train_config['min_error']
+
+        data_dict = load(self.data_config['dataset'])
+        datasets = DatasetContainer(self.data_config, data_dict)
 
         with tf.Session() as sess:
             if self.info_config['profiling']['enabled']:
@@ -35,20 +38,20 @@ class Experiment:
                 model_saver.restore(sess, self.train_config['pretrain']['path'])
 
             # Loading datasets into GPU
-            for key in self.data_dict.keys():
+            for key in data_dict.keys():
                 if key != 'ca':
-                    sess.run(self.datasets.sets[key]['load'],
-                             feed_dict={self.datasets.sets[key]['x_ph']: self.data_dict[key]['x'],
-                                        self.datasets.sets[key]['y_ph']: self.data_dict[key]['y']})
+                    sess.run(datasets.sets[key]['load'],
+                             feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x'],
+                                        datasets.sets[key]['y_ph']: data_dict[key]['y']})
                 else:
-                    sess.run(self.datasets.sets[key]['load'],
-                             feed_dict={self.datasets.sets[key]['x_ph']: self.data_dict[key]['x']})
+                    sess.run(datasets.sets[key]['load'],
+                             feed_dict={datasets.sets[key]['x_ph']: self.dict[key]['x']})
 
             for epoch in range(max_epochs):
                 # Evaluate performance on the different datasets and print some results on console
                 # Also check stopping critera
-                if current_epoch % self.info_config['calc_performance_every'] == 0:
-                    self.nn.nn_data.retrieve_metrics(sess, current_epoch)
+                if epoch % self.info_config['calc_performance_every'] == 0:
+                    self.nn.nn_data.retrieve_metrics(sess, epoch)
                     self.nn.nn_data.print()
                     if self.rnn.t_metrics.result_dict['tr']['vfe'][-1] < min_error:
                         break
@@ -56,40 +59,39 @@ class Experiment:
                 # Optionally store profiling results of this epoch in files
                 if self.info_config['profiling']['enabled']:
                     for trace_idx, trace in enumerate(traces):
-                        path = self.info_config['profiling']['path'] + '_' + str(current_epoch) + '_' + str(trace_idx)
+                        path = self.info_config['profiling']['path'] + '_' + str(epoch) + '_' + str(trace_idx)
                         with open(path + 'training.json', 'w') as f:
                             f.write(trace)
 
                 # Optionally store tensorboard summaries (not fully implemented yet)
                 # TODO: Implement summaries
                 if self.info_config['tensorboard']['enabled'] \
-                        and current_epoch % self.info_config['tensorboard']['period'] == 0:
+                        and epoch % self.info_config['tensorboard']['period'] == 0:
                     if self.info_config['tensorboard']['weights']:
                         weight_summary = sess.run(self.rnn.weight_summaries,
-                                                  feed_dict={self.datasets.minibatch_idx: 0})
-                        writer.add_summary(weight_summary, current_epoch)
+                                                  feed_dict={datasets.minibatch_idx: 0})
+                        writer.add_summary(weight_summary, epoch)
                     if self.info_config['tensorboard']['gradients']:
                         gradient_summary = sess.run(self.nn.gradient_summaries,
-                                                    feed_dict={self.datasets.minibatch_idx: 0})
-                        writer.add_summary(gradient_summary, current_epoch)
+                                                    feed_dict={datasets.minibatch_idx: 0})
+                        writer.add_summary(gradient_summary, epoch)
                     if self.info_config['tensorboard']['results']:
                         metric_summaries = sess.run(self.nn.metric_summaries,
-                                                    feed_dict={self.datasets.minibatch_idx: 0})
-                        writer.add_summary(metric_summaries, current_epoch)
+                                                    feed_dict={datasets.minibatch_idx: 0})
+                        writer.add_summary(metric_summaries, epoch)
                     if self.info_config['tensorboard']['acts']:
-                        act_summaries = sess.run(self.nn.act_summaries, feed_dict={self.datasets.minibatch_idx: 0})
-                        writer.add_summary(act_summaries, current_epoch)
+                        act_summaries = sess.run(self.nn.act_summaries, feed_dict={datasets.minibatch_idx: 0})
+                        writer.add_summary(act_summaries, epoch)
 
                 # Train for one full epoch. First shuffle to create new minibatches from the given data and
                 # then do a training step for each minibatch.
-                sess.run(self.datasets.sets['tr']['shuffle'])
+                sess.run(datasets.sets['tr']['shuffle'])
                 traces = list()
-                for minibatch_idx in range(self.datasets.sets['tr']['n_minibatches']):
+                for minibatch_idx in range(datasets.sets['tr']['n_minibatches']):
                     sess.run(self.nn.train_op,
-                             feed_dict={self.datasets.minibatch_idx: minibatch_idx},
+                             feed_dict={datasets.minibatch_idx: minibatch_idx},
                              options=options, run_metadata=run_metadata)
                 traces.append(timeline.Timeline(run_metadata.step_stats).generate_chrome_trace_format())
-                current_epoch += 1
 
             model_saver.save(sess, model_path)
         writer.close()

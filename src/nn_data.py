@@ -38,9 +38,8 @@ def convert_to_array(result_dicts, process_key, metric_keys):
 
 
 class NNData:
-    def __init__(self, data_config, datasets, info_config):
+    def __init__(self, datasets, info_config):
         self.info_config = info_config
-        self.data_config = data_config
         self.datasets = datasets
         self.metric_dict = {'epoch': list()}
         self.metric_op_dict = {}
