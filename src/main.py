@@ -30,7 +30,17 @@ data_config = {'dataset': 'ag55',
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': 0.8,
+                   'keep_prob': 0.8}
+
+data_config = {'dataset': 'ag50',
+               'tr': {'minibatch_enabled': True,
+                      'minibatch_size': 1000},
+               'va': {'minibatch_enabled': True,
+                      'minibatch_size': 1000}}
+
+hidden_1_config = {'var_scope': 'hidden_1',
+                   'layer_type': 'fc',
+                   'act_func': 'tanh',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.01,
                                    'w': 'xavier',
