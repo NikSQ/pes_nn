@@ -2,7 +2,7 @@
 # metrics: Performance metrics of NN (loss, variational free energy, kl loss, expected log likelihood)
 # output: Mean and variance of output of NN for a given dataset
 import numpy as np
-
+import tensorflow as tf
 
 def save_to_file(result_dicts, path):
     for process_key in result_dicts[0].keys():
@@ -38,9 +38,8 @@ def convert_to_array(result_dicts, process_key, metric_keys):
 
 
 class NNData:
-    def __init__(self, data_config, datasets, info_config):
+    def __init__(self, datasets, info_config):
         self.info_config = info_config
-        self.data_config = data_config
         self.datasets = datasets
         self.metric_dict = {'epoch': list()}
         self.metric_op_dict = {}
@@ -48,7 +47,7 @@ class NNData:
         self.output_op_dict = {}
 
     # Adds operations which calculate metrics for a dataset, given by its respective data_key
-    def add_metrics(self, data_key, vfe_op, kl_op, elogl_op):
+    def add_metrics(self, data_key, vfe_op, kl_op=tf.squeeze(tf.zeros(1)), elogl_op=tf.squeeze(tf.zeros(1))):
         if data_key in self.info_config['record_metrics']:
             self.metric_dict.update({data_key: {'vfe': [], 'kl': [], 'elogl': []}})
             self.metric_op_dict.update({data_key: [vfe_op, kl_op, elogl_op]})
@@ -63,15 +62,18 @@ class NNData:
     def retrieve_metrics(self, sess, epoch):
         for data_key in self.metric_op_dict.keys():
             cum_vfe = 0
-            elogl = 0
-            for minibatch_idx in range(self.datasets.data[data_key]['n_minibatches']):
+            cum_elogl = 0
+            for minibatch_idx in range(self.datasets.sets[data_key]['n_minibatches']):
                 vfe, kl, elogl = sess.run(self.metric_op_dict[data_key],
-                                          feed_dict={self.datasets.batch_idx: minibatch_idx})
-                cum_vfe += vfe
-                elogl += elogl
-            nelbo = cum_vfe / self.datasets.data[data_key]['n_minibatches']
+                                          feed_dict={self.datasets.minibatch_idx: minibatch_idx})
 
-            self.metric_dict[data_key]['vfe'].append(nelbo)
+                cum_vfe += vfe
+                cum_elogl += elogl
+
+            vfe = cum_vfe / self.datasets.sets[data_key]['n_minibatches']
+            elogl = cum_elogl / self.datasets.sets[data_key]['n_minibatches']
+
+            self.metric_dict[data_key]['vfe'].append(vfe)
             self.metric_dict[data_key]['kl'].append(kl)
             self.metric_dict[data_key]['elogl'].append(elogl)
         self.metric_dict['epoch'].append(epoch)
@@ -85,9 +87,9 @@ class NNData:
             if n_samples is None:
                 mean_list = []
                 variance_list = []
-                for minibatch_idx in range(self.datasets.data[data_key]['n_minibatches']):
+                for minibatch_idx in range(self.datasets.sets[data_key]['n_minibatches']):
                     mean, variance = sess.run(self.output_op_dict[data_key],
-                                              feed_dict={self.datasets.batch_idx: minibatch_idx})
+                                              feed_dict={self.datasets.minibatch_idx: minibatch_idx})
                     mean_list.append(mean)
                     variance_list.append(variance)
                 self.output_dict[data_key]['mean'].append(np.concatenate(mean_list, axis=0))
@@ -99,7 +101,7 @@ class NNData:
                     # Elements of single_output contain output of minibatch, the list contains whole output of one
                     # sample operation
                     single_output = []
-                    for minibatch_idx in range(self.datasets.data[data_key]['n_minibatches']):
+                    for minibatch_idx in range(self.datasets.sets[data_key]['n_minibatches']):
                         output = sess.run(self.output_op_dict[data_key],
                                                   feed_dict={self.datasets.batch_idx: minibatch_idx})
                         single_output.append(output)

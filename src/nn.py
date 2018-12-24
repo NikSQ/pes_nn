@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import math
 from src.fc_layer import FCLayer
 from src.nn_data import NNData
@@ -10,12 +11,18 @@ class NN:
         self.nn_config = nn_config
         self.train_config = train_config
         self.datasets = datasets
-        self.nn_data = NNData(datasets.data_config, datasets, info_config)
+        self.nn_data = NNData(datasets, info_config)
         self.train_op = None
         self.atomic_nns = []
 
-        for atomic_nn_idx, atomic_nn_config in enumerate(self.nn_config):
-            self.atomic_nns.append(AtomicNN(atomic_nn_config, train_config, datasets, atomic_nn_idx))
+        for atomic_nn_idx, atom in enumerate(self.nn_config['atoms']):
+            self.atomic_nns.append(AtomicNN(self.nn_config[atom], train_config, datasets, atomic_nn_idx))
+
+        for data_key in datasets.sets.keys():
+            if 'tr' in data_key:
+                self.create_training_graph(data_key)
+            else:
+                self.create_evaluation_graph(data_key)
 
     def create_nn_graph(self, data_key):
         means = []
@@ -23,29 +30,27 @@ class NN:
         for atomic_nn in self.atomic_nns:
             mean, var = atomic_nn.create_nn_graph(data_key)
             means.append(tf.expand_dims(mean, axis=1))
-            if var.type != 'NoOp':
-                vars.append(tf.expand_dims(vars, axis=1))
+            vars.append(tf.expand_dims(var, axis=1))
 
         # output statistics of atomic NNs are assumed to be independent
         means = tf.concat(means, axis=1)
         mean = tf.reduce_sum(means, axis=1)
-        if len(vars) != 0:
-            vars = tf.concat(vars, axis=1)
-            var = tf.reduce_sum(vars, axis=1)
+        vars = tf.concat(vars, axis=1)
+        var = tf.reduce_sum(vars, axis=1)
 
         # For the candidate dataset we are interested in mean and variance of output of NN
         if data_key == 'ca':
-            if self.train_config['method']['name'] == 'pfp':
+            if self.train_config['method'] == 'pfp':
                 return mean, var
             else:
-                return mean, tf.no_op()
+                return mean, tf.no_op() # Note that this is not the mean, just an output after weights were sampled
 
-        t = self.datasets[data_key]['t']
+        t = self.datasets.sets[data_key]['t']
 
-        if self.train_config['type'] == 'pfp':
+        if self.train_config['method'] == 'pfp':
             y_m = tf.cast(mean, dtype=tf.float64)
             y_v = tf.cast(var, dtype=tf.float64)
-            beta = self.train_config['beta']
+            beta = np.float64(self.train_config['beta'])
             inv_beta = 1 / (2 * beta)
 
             # Expected log likelihood. The output for a given set of weights of the network
@@ -54,42 +59,26 @@ class NN:
                                    inv_beta * tf.square(t - y_m) -
                                    y_v * inv_beta)
 
-            # The KL loss is scaled down (instead of scaling elogl up), such that resulting variational free energy
-            # is invariant to the batch size. The hyperparameter 'data_m' is used for a tradeoff between KL and elogl
-            kl = 0
-            for layer in self.layers:
-                kl = kl + layer.weights.get_kl_loss()
-            kl /= (self.nn_config['data_m'] *
-                   self.datasets.data_config['minibatch_size'] *
-                   self.datasets.data_config['n_minibatches'])
+            kl = self.compute_kl(data_key)
+            vfe = -elogl
+            self.nn_data.add_metrics(data_key, vfe, elogl_op=elogl)
 
-            vfe = kl - elogl
-            self.nn_data.add_metrics(data_key, vfe, kl, elogl)
-
-        elif self.train_config['type'] == 'lr':
+        elif self.train_config['method'] == 'lr':
             y = tf.cast(mean, dtype=tf.float64)
 
-            # The expected log likelihood is the L2 loss of residuals
+            # The expected log likelihood is the negated L2 loss of residuals (likelihood is gaussian)
             elogl = -tf.reduce_mean(tf.square(t - y))
 
-            # The KL loss is scaled down (instead of scaling elogl up), such that resulting variational free energy
-            # is invariant to the batch size. The hyperparameter 'data_m' is used for a tradeoff between KL and elogl
-            kl = 0
-            for layer in self.layers:
-                kl = kl + layer.weights.get_kl_loss()
-            kl /= (self.nn_config['data_m'] *
-                   self.datasets.data_config['minibatch_size'] *
-                   self.datasets.data_config['n_minibatches'])
+            kl = self.compute_kl(data_key)
+            vfe = - elogl
+            self.nn_data.add_metrics(data_key, vfe, elogl_op=elogl)
 
-            vfe = kl - elogl
-            self.nn_data.add_metrics(data_key, vfe, kl, elogl)
-
-        elif self.train_config['type'] == 'mcd':
+        elif self.train_config['method'] == 'mcd':
             y = tf.cast(mean, dtype=tf.float64)
 
-            # For simplicity we refer to the loss as vfe
+            # For the sake of reusing code we refer to the loss as vfe
             vfe = tf.reduce_mean(tf.square(t - y))
-            self.nn_data.add_metrics(data_key, vfe, tf.no_op(), tf.no_op())
+            self.nn_data.add_metrics(data_key, vfe)
 
         return vfe
 
@@ -97,7 +86,7 @@ class NN:
     def create_training_graph(self, data_key):
         with tf.variable_scope(data_key):
             vfe = self.create_nn_graph(data_key)
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.training_config['learning_rate'])
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.train_config['learning_rate'])
             gradients = optimizer.compute_gradients(vfe)
             self.train_op = optimizer.apply_gradients(gradients)
 
@@ -112,8 +101,20 @@ class NN:
                 y_m, y_v = self.create_nn_graph(data_key)
                 self.nn_data.add_output(data_key, y_m, y_v)
 
+    # TODO: Compute KL loss by making a call to one atomic NN for each type of atom
+    def compute_kl(self, data_key):
+        atoms, counts = np.unique(self.nn_config['atoms'], return_counts=True)
+        kl = 0
+        #for atom, count in zip(atoms, counts):
 
+        # The KL loss is scaled down (instead of scaling elogl up), such that resulting variational free energy
+        # is invariant to the batch size. The hyperparameter 'data_m' is used for a tradeoff between KL and elogl
 
+        kl /= (self.nn_config['data_m'] *
+            self.datasets.sets[data_key]['minibatch_size'] *
+            self.datasets.sets[data_key]['n_minibatches'])
+        #kl = tf.zeros((1), dtype=tf.float64) # line is currently needed
+        return kl
 
 
 
