@@ -22,7 +22,7 @@ def load(name):
     data_dict['va']['x'] = features[tr_size:va_size+tr_size, :, :]
     data_dict['va']['t'] = labels[tr_size:va_size+tr_size]
     data_dict['ca']['x'] = features[va_size+tr_size:, :, :]
-    # data_dict['ca']['t'] = labels[va_size+tr_size:]
+    data_dict['ca']['t'] = labels[va_size+tr_size:]
     return data_dict
 
 

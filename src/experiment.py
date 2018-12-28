@@ -20,6 +20,7 @@ class Experiment:
 
         data_dict = load(self.data_config['dataset'])
         datasets = DatasetContainer(self.data_config, data_dict)
+        datasets.transfer_samples('ca', 'tr', [1, 5, 2])
         self.nn = NN(self.nn_config, self.train_config, self.info_config, datasets)
 
         #  Trained NN is optionally stored and can later be loaded with the pretrain option
@@ -41,13 +42,11 @@ class Experiment:
 
             # Loading datasets into GPU
             for key in data_dict.keys():
-                if key != 'ca':
-                    sess.run(datasets.sets[key]['load'],
-                             feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x'],
-                                        datasets.sets[key]['t_ph']: data_dict[key]['t']})
-                else:
-                    sess.run(datasets.sets[key]['load'],
-                             feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x']})
+                sess.run(datasets.sets[key]['load'],
+                         feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x'],
+                                    datasets.sets[key]['t_ph']: data_dict[key]['t']})
+            print('what')
+            print(sess.run(datasets.test).shape)
 
             for epoch in range(max_epochs):
                 # Evaluate performance on the different datasets and print some results on console

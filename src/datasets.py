@@ -22,16 +22,12 @@ class DatasetContainer:
                                                trainable=False)
                 assign_x = tf.assign(dataset['x'], dataset['x_ph'])
 
-                # Candidate datasets only consist of input data
-                if data_key != 'ca':
-                    dataset['t_shape'] = data_dict[data_key]['t'].shape
-                    dataset['t_ph'] = tf.placeholder(dtype=tf.float64, shape=dataset['t_shape'])
-                    dataset['t'] = tf.get_variable(name='t_' + data_key, shape=dataset['t_shape'], dtype=tf.float64,
+                dataset['t_shape'] = data_dict[data_key]['t'].shape
+                dataset['t_ph'] = tf.placeholder(dtype=tf.float64, shape=dataset['t_shape'])
+                dataset['t'] = tf.get_variable(name='t_' + data_key, shape=dataset['t_shape'], dtype=tf.float64,
                                                    trainable=False)
-                    assign_t = tf.assign(dataset['t'], dataset['t_ph'])
-                    dataset['load'] = tf.group(*[assign_x, assign_t])
-                else:
-                    dataset['load'] = assign_x
+                assign_t = tf.assign(dataset['t'], dataset['t_ph'])
+                dataset['load'] = tf.group(*[assign_x, assign_t])
 
                 if data_config[data_key]['minibatch_enabled']:
                     batch_size = data_config[data_key]['minibatch_size']
@@ -54,12 +50,14 @@ class DatasetContainer:
                                              indices=samples[self.minibatch_idx:self.minibatch_idx+batch_size])
                     dataset['x_shape'] = (data_config[data_key]['minibatch_size'],) + dataset['x_shape'][1:]
 
-                    if data_key != 'ca':
-                        dataset['t'] = tf.gather(dataset['t'],
-                                                 indices=samples[self.minibatch_idx:self.minibatch_idx+batch_size])
-                        dataset['t_shape'] = (data_config[data_key]['minibatch_size'],) + dataset['t_shape'][1:]
+                    dataset['t'] = tf.gather(dataset['t'],
+                                             indices=samples[self.minibatch_idx:self.minibatch_idx+batch_size])
+                    dataset['t_shape'] = (data_config[data_key]['minibatch_size'],) + dataset['t_shape'][1:]
                 else:
                     dataset['n_minibatches'] = 1
                     dataset['shuffle'] = tf.no_op()
 
                 self.sets.update({data_key: dataset})
+
+    def transfer_samples(self, src_set, target_set, sample_idc):
+        self.test = tf.gather(self.sets[src_set]['x'], indices=sample_idc)

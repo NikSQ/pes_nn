@@ -53,7 +53,7 @@ nn_config['atoms'] = ['ag'] * 55
 nn_config['ag'] = ag_nn_config
 
 train_config = {'learning_rate': 0.002,
-                'max_epochs': 100,
+                'max_epochs': 30,
                 'min_error': 0.,
                 'beta': 0.1,
                 'method': 'lr',

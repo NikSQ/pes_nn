@@ -4,31 +4,32 @@
 import numpy as np
 import tensorflow as tf
 
-def save_to_file(result_dicts, path):
-    for process_key in result_dicts[0].keys():
-        if process_key == 'epoch':
+def save_to_file(nn_datas, path):
+    metric_dicts = []
+    for nn_data in nn_datas:
+        metric_dicts.append(nn_data.metric_dict)
+
+    for data_key in metric_dicts[0].keys():
+        if data_key == 'epoch':
             continue
 
-        if process_key.endswith('_s'):
-            metrics = convert_to_array(result_dicts, process_key, ['m_loss', 's_loss', 'm_acc', 's_acc'])
-        elif process_key.endswith('_b'):
-            metrics = convert_to_array(result_dicts, process_key, ['nelbo', 'kl', 'elogl', 'acc'])
-        else:
-            raise Exception('process key {} not understood'.format(process_key))
+        metrics = convert_to_array(metric_dicts, data_key)
 
-        for metric_key in metrics.keys():
-            np.save(path + '_' + process_key + '_' + metric_key, metrics[metric_key])
-    np.save(path + '_epochs', np.asarray(result_dicts[0]['epoch']))
+        for metric_key in metric_dicts[0][data_key].keys():
+            np.save(path + '_' + data_key + '_' + metric_key, metrics[metric_key])
+    np.save(path + '_epochs', np.asarray(metric_dicts[0]['epoch']))
 
 
-def convert_to_array(result_dicts, process_key, metric_keys):
+def convert_to_array(metric_dicts, data_key):
     metrics = dict()
+    metric_keys = metric_dicts[0][data_key].keys()
     for metric_key in metric_keys:
+        print(metric_key)
         metrics[metric_key] = list()
 
-    for run, result_dict in enumerate(result_dicts):
+    for metric_dict in metric_dicts:
         for metric_key in metric_keys:
-            metrics[metric_key].append(np.expand_dims(np.asarray(result_dict[process_key][metric_key], np.float32),
+            metrics[metric_key].append(np.expand_dims(np.asarray(metric_dict[data_key][metric_key], np.float32),
                                        axis=0))
 
     for metric_key in metric_keys:
