@@ -33,10 +33,8 @@ class NN:
             vars.append(tf.expand_dims(var, axis=1))
 
         # output statistics of atomic NNs are assumed to be independent
-        means = tf.concat(means, axis=1)
-        mean = tf.reduce_sum(means, axis=1)
-        vars = tf.concat(vars, axis=1)
-        var = tf.reduce_sum(vars, axis=1)
+        mean = tf.reduce_sum(tf.concat(means, axis=1), axis=1)
+        var = tf.reduce_sum(tf.concat(vars, axis=1), axis=1)
 
         # For the candidate dataset we are interested in mean and variance of output of NN
         if data_key == 'ca':

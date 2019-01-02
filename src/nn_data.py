@@ -24,7 +24,6 @@ def convert_to_array(metric_dicts, data_key):
     metrics = dict()
     metric_keys = metric_dicts[0][data_key].keys()
     for metric_key in metric_keys:
-        print(metric_key)
         metrics[metric_key] = list()
 
     for metric_dict in metric_dicts:
@@ -103,13 +102,13 @@ class NNData:
                     # sample operation
                     single_output = []
                     for minibatch_idx in range(self.datasets.sets[data_key]['n_minibatches']):
-                        output = sess.run(self.output_op_dict[data_key],
-                                                  feed_dict={self.datasets.batch_idx: minibatch_idx})
-                        single_output.append(output)
-                    output_list.append(np.expand_dims(np.concatenate(single_output, axis=0), axis=1))
-
-                self.output_dict[data_key]['mean'].append(np.mean(output_list, axis=1))
-                self.output_dict[data_key]['var'].append(np.var(output_list, axis=1, ddof=1))
+                        mean, variance = sess.run(self.output_op_dict[data_key],
+                                                  feed_dict={self.datasets.minibatch_idx: minibatch_idx})
+                        single_output.append(mean)
+                    output_list.append(np.concatenate(single_output, axis=0))
+                output = np.concatenate(output_list, axis=1)
+                self.output_dict[data_key]['mean'].append(np.mean(output, axis=1))
+                self.output_dict[data_key]['var'].append(np.var(output, axis=1, ddof=1))
 
         self.output_dict['epoch'].append(epoch)
 

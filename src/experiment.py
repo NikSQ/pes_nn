@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from tensorflow.python.client import timeline
 from src.data_loader import load
 from src.datasets import DatasetContainer
@@ -20,7 +21,6 @@ class Experiment:
 
         data_dict = load(self.data_config['dataset'])
         datasets = DatasetContainer(self.data_config, data_dict)
-        datasets.transfer_samples('ca', 'tr', [1, 5, 2])
         self.nn = NN(self.nn_config, self.train_config, self.info_config, datasets)
 
         #  Trained NN is optionally stored and can later be loaded with the pretrain option
@@ -45,10 +45,23 @@ class Experiment:
                 sess.run(datasets.sets[key]['load'],
                          feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x'],
                                     datasets.sets[key]['t_ph']: data_dict[key]['t']})
-            print('what')
-            print(sess.run(datasets.test).shape)
 
             for epoch in range(max_epochs):
+                # Run through candidate set to estimate the information gain from them
+                if (epoch+1) % self.candidate_config['period'] == 0:
+                    if self.train_config['method'] == 'pfp':
+                        n_samples = None
+                    else:
+                        n_samples = self.candidate_config['n_samples']
+
+                    self.nn.nn_data.retrieve_output(sess, epoch, n_samples)
+                    sorted_candidate_idc = np.argsort(self.nn.nn_data.output_dict['ca']['var'][-1]
+                                                      [:datasets.sets['ca']['x_f_shape'][0]])
+                    sess.run(datasets.transfer_op,
+                             feed_dict={datasets.transfer_idc:
+                                        sorted_candidate_idc[-self.candidate_config['n_transfers']:],
+                                        datasets.batch_size: datasets.sets['ca']['x_f_shape'][0]})
+                    datasets.update_shapes(self.candidate_config['n_transfers'], sess)
                 # Evaluate performance on the different datasets and print some results on console
                 # Also check stopping critera
                 if epoch % self.info_config['calc_performance_every'] == 0:
