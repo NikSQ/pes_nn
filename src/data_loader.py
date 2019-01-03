@@ -8,14 +8,13 @@ sets = {'ag55': 'Ag_dataset.npz'}
 def load(name):
     data = np.load(path + sets[name])
     labels = data['energies']
-    print(labels[:200])
     features = data['Gs']
     features = (features - np.mean(features)) / np.std(features)
-    print(labels.shape)
     # This is just used for testing the implementation
     tr_size = 5000
     va_size = 2500
     # all other samples are candidates
+    print(features.shape)
 
     data_dict = {'tr': dict(), 'va': dict(), 'ca': dict()}
     data_dict['tr']['x'] = features[:tr_size, :, :]

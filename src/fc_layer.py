@@ -77,8 +77,9 @@ class FCLayer:
 
     # Creates a forward pass with dropout
     def create_fp(self, x):
-        a = tf.matmul(x, self.w) + self.b
-        return tf.nn.dropout(x=self.apply_act_func(a), keep_prob=self.layer_config['keep_prob'])
+        with tf.name_scope(self.layer_config['var_scope']):
+            a = tf.matmul(x, self.w) + self.b
+            return tf.nn.dropout(x=self.apply_act_func(a), keep_prob=self.layer_config['keep_prob'])
 
     def apply_act_func(self, a):
         if self.layer_config['act_func'] == 'linear':

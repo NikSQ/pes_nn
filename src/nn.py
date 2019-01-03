@@ -14,6 +14,7 @@ class NN:
         self.nn_data = NNData(datasets, info_config)
         self.train_op = None
         self.atomic_nns = []
+        self.gradient_summaries = None
 
         for atomic_nn_idx, atom in enumerate(self.nn_config['atoms']):
             self.atomic_nns.append(AtomicNN(self.nn_config[atom], train_config, datasets, atomic_nn_idx))
@@ -29,13 +30,11 @@ class NN:
         vars = []
         for atomic_nn in self.atomic_nns:
             mean, var = atomic_nn.create_nn_graph(data_key)
-            means.append(tf.expand_dims(mean, axis=1))
-            vars.append(tf.expand_dims(var, axis=1))
-
+            means.append(mean)
+            vars.append(var)
         # output statistics of atomic NNs are assumed to be independent
         mean = tf.reduce_sum(tf.concat(means, axis=1), axis=1)
         var = tf.reduce_sum(tf.concat(vars, axis=1), axis=1)
-
         # For the candidate dataset we are interested in mean and variance of output of NN
         if data_key == 'ca':
             if self.train_config['method'] == 'pfp':
@@ -86,6 +85,12 @@ class NN:
             vfe = self.create_nn_graph(data_key)
             optimizer = tf.train.AdamOptimizer(learning_rate=self.train_config['learning_rate'])
             gradients = optimizer.compute_gradients(vfe)
+
+            summaries = []
+            for grad, var in gradients:
+                if grad is not None:
+                    summaries.append(tf.summary.histogram(var.name, grad))
+            self.gradient_summaries = tf.summary.merge(summaries)
             self.train_op = optimizer.apply_gradients(gradients)
 
     # Creates a network for evaluation only (no backward pass)

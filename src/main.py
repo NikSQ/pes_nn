@@ -15,7 +15,7 @@ except KeyError:
     task_id = 0
 
 
-filename = 'ag_test'
+filename = 'graph'
 
 runs = 1
 
@@ -27,9 +27,9 @@ runs = 1
 data_config = {'dataset': 'ag55',
                'tr': {'minibatch_enabled': True,  # setting to false is not guaranteed to work
                       'minibatch_size': 50},
-               'va': {'minibatch_enabled': True,
+               'va': {'minibatch_enabled': False,
                       'minibatch_size': 1000},
-               'ca': {'minibatch_enabled': True,  # setting to false is not guaranteed to work
+               'ca': {'minibatch_enabled': False,  # setting to false is not guaranteed to work
                       'minibatch_size': 1000}}
 
 # TODO: More sophisticated initialization of variance
@@ -42,7 +42,7 @@ data_config = {'dataset': 'ag55',
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': 0.8,
+                   'keep_prob': 1.,
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.01,
                                    'w': 'xavier',
@@ -83,26 +83,26 @@ nn_config['ag'] = ag_nn_config
 # the pfp requires the network to output a probability density instead of a single energy.
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
-train_config = {'learning_rate': 0.0001,
-                'max_epochs': 1000,
+train_config = {'learning_rate': .0001,
+                'max_epochs': 1,
                 'min_error': 0.,
                 'beta': 0.1,
-                'method': 'lr',
-                'pretrain': {'enabled': False, 'path': '../models/pretrained'},
+                'method': 'mcd',
+                'pretrain': {'enabled': False, 'path': '../models/real_0'},
                 'task_id': task_id}
 
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
-candidate_config = {'period': 3000,
+candidate_config = {'period': 30000,
                     'n_transfers': 500,
                     'n_samples': 30}
 
 
 info_config = {'calc_performance_every': 1,
                'filename': filename,
-               'tensorboard': {'enabled': False, 'path': '../tb/' + filename, 'period': 1,
-                               'weights': True, 'gradients': True, 'results': True, 'acts': True},
+               'tensorboard': {'enabled': True, 'path': '../tb/' + filename, 'period': 10, 'graph': True,
+                               'weights': True, 'gradients': True},
                'profiling': {'enabled': False, 'path': '../profiling/' + filename},
                'record_metrics': ['tr', 'va', 'ca'],
                'record_output': ['ca']}

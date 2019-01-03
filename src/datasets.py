@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 
-# TODO: Add operation for moving a sample from candidate to training dataset
 # TODO: Allow option to take the gradient w.r.t. to input of training and / or candidate set
 # TODO: Add symmetry operators (descriptors)
 

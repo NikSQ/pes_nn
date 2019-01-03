@@ -27,6 +27,11 @@ class Experiment:
         model_path = '../models/' + self.info_config['filename'] + '_' + str(self.train_config['task_id'])
         model_saver = tf.train.Saver(tf.trainable_variables())
 
+        var_summaries = []
+        for variable in tf.trainable_variables():
+            var_summaries.append(tf.summary.histogram(variable.name, variable))
+        var_summaries = tf.summary.merge(var_summaries)
+
         with tf.Session() as sess:
             if self.info_config['profiling']['enabled']:
                 options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
@@ -78,24 +83,17 @@ class Experiment:
                             f.write(trace)
 
                 # Optionally store tensorboard summaries (not fully implemented yet)
-                # TODO: Implement summaries
                 if self.info_config['tensorboard']['enabled'] \
                         and epoch % self.info_config['tensorboard']['period'] == 0:
                     if self.info_config['tensorboard']['weights']:
-                        weight_summary = sess.run(self.rnn.weight_summaries,
-                                                  feed_dict={datasets.minibatch_idx: 0})
+                        weight_summary = sess.run(var_summaries)
                         writer.add_summary(weight_summary, epoch)
                     if self.info_config['tensorboard']['gradients']:
                         gradient_summary = sess.run(self.nn.gradient_summaries,
                                                     feed_dict={datasets.minibatch_idx: 0})
                         writer.add_summary(gradient_summary, epoch)
-                    if self.info_config['tensorboard']['results']:
-                        metric_summaries = sess.run(self.nn.metric_summaries,
-                                                    feed_dict={datasets.minibatch_idx: 0})
-                        writer.add_summary(metric_summaries, epoch)
-                    if self.info_config['tensorboard']['acts']:
-                        act_summaries = sess.run(self.nn.act_summaries, feed_dict={datasets.minibatch_idx: 0})
-                        writer.add_summary(act_summaries, epoch)
+                    if self.info_config['tensorboard']['graph']:
+                        writer.add_graph(sess.graph)
 
                 # Train for one full epoch. First shuffle to create new minibatches from the given data and
                 # then do a training step for each minibatch.
