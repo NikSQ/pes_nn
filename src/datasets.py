@@ -4,13 +4,83 @@ import tensorflow as tf
 # TODO: Allow option to take the gradient w.r.t. to input of training and / or candidate set
 # TODO: Add symmetry operators (descriptors)
 
+
+class LabeledData:
+    def __init__(self, data_config, data_dict):
+        self.data_dict = data_dict
+        self.data_config = data_config
+        self.update_shapes()
+
+        with tf.variable_scope('datasets'):
+            self.x = tf.placeholder(name='x', dtype=tf.float32,
+                                    shape=(None,) + next(iter(data_dict.values()))['x'].shape[1:])
+            self.t = tf.placeholder(name='t', dtype=tf.float64, shape=(None,))
+            self.is_training = tf.placeholder(dtype=tf.bool)
+
+    def update_shapes(self):
+        for data_key in self.data_dict.keys():
+            if self.data_config[data_key]['minibatch_enabled']:
+                self.data_config[data_key]['n_minibatches'] = int(np.ceil(float(self.data_dict[data_key]['x'].shape[0]) /
+                                                                          float(self.data_config[data_key]['minibatch_size'])))
+                self.data_config[data_key]['batch_size'] = self.data_config[data_key]['n_minibatches'] * \
+                                                           self.data_config[data_key]['minibatch_size']
+            else:
+                self.data_config[data_key]['n_minibatches'] = 1
+                self.data_config[data_key]['batch_size'] = self.data_dict[data_key]['x'].shape[0]
+
+    def transfer_samples(self, transfer_idc, src_data_key='ca', tgt_data_key='tr'):
+        self.data_dict[tgt_data_key]['x'] = np.concatenate([self.data_dict[tgt_data_key]['x'],
+                                                            self.data_dict[src_data_key]['x'][transfer_idc]], axis=0)
+        self.data_dict[tgt_data_key]['t'] = np.concatenate([self.data_dict[tgt_data_key]['t'],
+                                                            self.data_dict[src_data_key]['t'][transfer_idc]], axis=0)
+        self.data_dict[src_data_key]['x'] = np.delete(self.data_dict[src_data_key]['x'], transfer_idc, axis=0)
+        self.data_dict[src_data_key]['t'] = np.delete(self.data_dict[src_data_key]['t'], transfer_idc, axis=0)
+        self.update_shapes()
+
+    def create_minibatches(self, data_key, shuffle, feed_t, is_training):
+        idc_list = np.arange(self.data_dict[data_key]['x'].shape[0])
+        if shuffle:
+            idc_list = np.random.permutation(idc_list)
+        idc_list = np.tile(idc_list, reps=(int(np.ceil(self.data_config[data_key]['batch_size'] / len(idc_list)))))
+        minibatches = []
+        for minibatch_idx in range(self.data_config[data_key]['n_minibatches']):
+            idc_range = range(minibatch_idx * self.data_config[data_key]['minibatch_size'],
+                              (minibatch_idx+1) * self.data_config[data_key]['minibatch_size'])
+            if feed_t:
+                minibatch = {self.x: self.data_dict[data_key]['x'][idc_list[idc_range]],
+                             self.t: self.data_dict[data_key]['t'][idc_list[idc_range]],
+                             self.is_training: is_training}
+            else:
+                minibatch = {self.x: self.data_dict[data_key]['x'][idc_list[idc_range]],
+                             self.is_training: is_training}
+
+            minibatches.append(minibatch)
+        return minibatches
+
+    def run(self, sess, ops, data_key, shuffle=False, feed_t=True, is_training=False):
+        if self.data_config[data_key]['minibatch_enabled']:
+            results = []
+            feed_dicts = self.create_minibatches(data_key, shuffle, feed_t, is_training)
+            for minibatch_idx in range(self.data_config[data_key]['n_minibatches']):
+                results.append(sess.run(ops, feed_dict=feed_dicts[minibatch_idx]))
+            return results
+        else:
+            feed_dict = {self.x: self.data_dict[data_key]['x'],
+                         self.is_training: is_training}
+            if feed_t:
+                feed_dict[self.t] = self.data_dict[data_key]['t']
+            result = sess.run(ops, feed_dict=feed_dict)
+            return [result]
+
+
+# This class is obsolete for the moment
 class DatasetContainer:
     def __init__(self, data_config, data_dict):
         with tf.variable_scope('datasets'):
             self.minibatch_idx = tf.placeholder(dtype=tf.int32)  # indexes a minibatch within the larger batch
             self.sl_indices = tf.placeholder(shape=(None,), dtype=tf.int32)
             self.data_config = data_config
-            self.sets = dict()
+            self.data = dict()
 
             # the keys refer to the different datasets (tr = training, va = validation, te = test, ca = candidate)
             for data_key in data_dict.keys():

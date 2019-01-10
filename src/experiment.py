@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python.client import timeline
 from src.data_loader import load
-from src.datasets import DatasetContainer
+from src.datasets import LabeledData
 from src.nn import NN
 
 
@@ -20,8 +20,8 @@ class Experiment:
         min_error = self.train_config['min_error']
 
         data_dict = load(self.data_config['dataset'])
-        datasets = DatasetContainer(self.data_config, data_dict)
-        self.nn = NN(self.nn_config, self.train_config, self.info_config, datasets)
+        l_data = LabeledData(self.data_config, data_dict)
+        self.nn = NN(self.nn_config, self.train_config, self.info_config, l_data)
 
         #  Trained NN is optionally stored and can later be loaded with the pretrain option
         model_path = '../models/' + self.info_config['filename'] + '_' + str(self.train_config['task_id'])
@@ -33,23 +33,20 @@ class Experiment:
         var_summaries = tf.summary.merge(var_summaries)
 
         with tf.Session() as sess:
-            if self.info_config['profiling']['enabled']:
-                options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            else:
-                options = tf.RunOptions(trace_level=tf.RunOptions.NO_TRACE)
-            run_metadata = tf.RunMetadata()
+            # if self.info_config['profiling']['enabled']:
+            #     options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            # else:
+            #     options = tf.RunOptions(trace_level=tf.RunOptions.NO_TRACE)
+            # run_metadata = tf.RunMetadata()
             writer = tf.summary.FileWriter(self.info_config['tensorboard']['path'] + str(self.train_config['task_id']))
             sess.run(tf.global_variables_initializer())
 
             # Loads previously stored weights
             if self.train_config['pretrain']['enabled']:
                 model_saver.restore(sess, self.train_config['pretrain']['path'])
-
-            # Loading datasets into GPU
-            for key in data_dict.keys():
-                sess.run(datasets.sets[key]['load'],
-                         feed_dict={datasets.sets[key]['x_ph']: data_dict[key]['x'],
-                                    datasets.sets[key]['t_ph']: data_dict[key]['t']})
+                if self.train_config['pretrain']['init_mcd']:
+                    # TODO: Atm this only works for a single type of atomic NN
+                    sess.run(self.nn.atomic_nns[0].init_op)
 
             for epoch in range(max_epochs):
                 # Run through candidate set to estimate the information gain from them
@@ -60,13 +57,21 @@ class Experiment:
                         n_samples = self.candidate_config['n_samples']
 
                     self.nn.nn_data.retrieve_output(sess, epoch, n_samples)
+                    n_transfers = self.candidate_config['n_transfers']
                     sorted_candidate_idc = np.argsort(self.nn.nn_data.output_dict['ca']['var'][-1]
-                                                      [:datasets.sets['ca']['x_f_shape'][0]])
-                    sess.run(datasets.transfer_op,
-                             feed_dict={datasets.transfer_idc:
-                                        sorted_candidate_idc[-self.candidate_config['n_transfers']:],
-                                        datasets.batch_size: datasets.sets['ca']['x_f_shape'][0]})
-                    datasets.update_shapes(self.candidate_config['n_transfers'], sess)
+                                                      [:l_data.data_config['ca']['batch_size']])
+                    random_candidate_idc = np.random.permutation(sorted_candidate_idc)
+
+                    self.nn.nn_data.add_variances(sorted_candidate_idc[-n_transfers:],
+                                                  random_candidate_idc[-n_transfers:], epoch)
+
+                    if self.candidate_config['method'] == 'random':
+                        transfer_idc = random_candidate_idc
+                    else:
+                        transfer_idc = sorted_candidate_idc
+
+                    l_data.transfer_samples(transfer_idc[-n_transfers:])
+
                 # Evaluate performance on the different datasets and print some results on console
                 # Also check stopping critera
                 if epoch % self.info_config['calc_performance_every'] == 0:
@@ -76,11 +81,11 @@ class Experiment:
                         break
 
                 # Optionally store profiling results of this epoch in files
-                if self.info_config['profiling']['enabled']:
-                    for trace_idx, trace in enumerate(traces):
-                        path = self.info_config['profiling']['path'] + '_' + str(epoch) + '_' + str(trace_idx)
-                        with open(path + 'training.json', 'w') as f:
-                            f.write(trace)
+                # if self.info_config['profiling']['enabled']:
+                #     for trace_idx, trace in enumerate(traces):
+                #         path = self.info_config['profiling']['path'] + '_' + str(epoch) + '_' + str(trace_idx)
+                #         with open(path + 'training.json', 'w') as f:
+                #             f.write(trace)
 
                 # Optionally store tensorboard summaries (not fully implemented yet)
                 if self.info_config['tensorboard']['enabled'] \
@@ -89,21 +94,13 @@ class Experiment:
                         weight_summary = sess.run(var_summaries)
                         writer.add_summary(weight_summary, epoch)
                     if self.info_config['tensorboard']['gradients']:
-                        gradient_summary = sess.run(self.nn.gradient_summaries,
-                                                    feed_dict={datasets.minibatch_idx: 0})
-                        writer.add_summary(gradient_summary, epoch)
+                        gradient_summaries = l_data.run(sess, self.nn.gradient_summaries, 'tr', shuffle=False, feed_t=True)
+                        writer.add_summary(gradient_summaries[0], epoch)
                     if self.info_config['tensorboard']['graph']:
                         writer.add_graph(sess.graph)
 
-                # Train for one full epoch. First shuffle to create new minibatches from the given data and
-                # then do a training step for each minibatch.
-                sess.run(datasets.sets['tr']['shuffle'])
-                traces = list()
-                for minibatch_idx in range(datasets.sets['tr']['n_minibatches']):
-                    sess.run(self.nn.train_op,
-                             feed_dict={datasets.minibatch_idx: minibatch_idx},
-                             options=options, run_metadata=run_metadata)
-                traces.append(timeline.Timeline(run_metadata.step_stats).generate_chrome_trace_format())
+                # Train one full epoch
+                l_data.run(sess, self.nn.train_op, 'tr', shuffle=True, feed_t=True, is_training=True)
 
             model_saver.save(sess, model_path)
         writer.close()
