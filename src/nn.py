@@ -77,7 +77,7 @@ class NN:
                 if grad is not None:
                     summaries.append(tf.summary.histogram(var.name, grad))
             self.gradient_summaries = tf.summary.merge(summaries)
-            gradients = [(None if grad is None else tf.clip_by_value(grad, -0.5, 0.5), var) for grad, var in gradients]
+            gradients = [(None if grad is None else tf.clip_by_value(grad, -0.1, 0.1), var) for grad, var in gradients]
             self.train_op = optimizer.apply_gradients(gradients)
 
     # TODO: Compute KL loss by making a call to one atomic NN for each type of atom

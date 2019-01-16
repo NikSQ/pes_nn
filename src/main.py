@@ -15,7 +15,7 @@ except KeyError:
     print('Using ID {} instead'.format(task_id))
 
 
-filename = 'one'
+filename = 'lr'
 
 runs = 1
 
@@ -62,9 +62,9 @@ output_config['keep_prob'] = 1.  # Needs to be done explicitly
 # Each atom nn has a config. Will usually be the same for each atom though, except for the var_scope
 # layout: Size of each layer (including input and output layer)
 # layer_configs: The layer configuration dicts for each layer
-ag_nn_config = {'layout': [23, 10, 1],
+ag_nn_config = {'layout': [54, 40, 40, 1],
                 'var_scope': 'ag',
-                'layer_configs': [{'layer_type': 'input'}, hidden_1_config, output_config]}
+                'layer_configs': [{'layer_type': 'input'}, hidden_1_config, hidden_2_config, output_config]}
 
 # Config dict of the complete network
 # data_m: Variable used to trade-off KL loss and expected log likelihood. data_m can be interpreted as a factor with
@@ -73,7 +73,7 @@ ag_nn_config = {'layout': [23, 10, 1],
 # used for the atom-nn-config
 # for each different atom type, the nn-config stores the atom-nn-config using the var_scope of the atom-nn-config as
 # dict_key. In this case 'ag'
-nn_config = {'data_m': 100000.}
+nn_config = {'data_m': 10000000.}
 nn_config['atoms'] = ['ag'] * 55
 nn_config['ag'] = ag_nn_config
 
@@ -86,14 +86,15 @@ nn_config['ag'] = ag_nn_config
 # the pfp requires the network to output a probability density instead of a single energy.
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
-train_config = {'learning_rate': .03,
-                'max_epochs': 100000,
+train_config = {'learning_rate': .001,
+                'max_epochs': 20000,
                 'min_error': 0.,
                 'beta': 0.3,
                 'w_prior_v': 0.6,
                 'method': 'pfp',
                 'pretrain': {'enabled': False, 'path': '../models/normal_0', 'init_mcd': True},
                 'task_id': task_id}
+print(train_config)
 
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
