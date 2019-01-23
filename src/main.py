@@ -11,7 +11,7 @@ try:
     task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
 except KeyError:
     print('NO SLURM TASK ID FOUND')
-    task_id = 1
+    task_id = 0
     print('Using ID {} instead'.format(task_id))
 
 
@@ -80,18 +80,19 @@ nn_config['ag'] = ag_nn_config
 # This is the configuration for training related settings
 # learning_rate: initial learning rate of the adam optimizer
 # max_epochs: maximum amount of epochs the nn is trained
-# min_error: alternative stopping criterion. as soon as loss or variational free energy falls below it, the training
+# min_error: alternative stopping    criterion. as soon as loss or variational free energy falls below it, the training
 # stops
-# beta: Used by the probabilistic forward pass. It specifies the variance of the output of a deterministic NN, because
+# beta: Used by the probabilistic forward pass. It specifies the variance of the output of a deterministic NN
+# out_var: Specifies variance of output of a deterministc NN.
 # the pfp requires the network to output a probability density instead of a single energy.
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
-train_config = {'learning_rate': .001,
-                'max_epochs': 20000,
+train_config = {'learning_rate': .003,
+                'max_epochs': 2000,
                 'min_error': 0.,
-                'beta': 0.3,
+                'out_var': 0.2,
                 'w_prior_v': 0.6,
-                'method': 'pfp',
+                'method': 'mcd',
                 'pretrain': {'enabled': False, 'path': '../models/normal_0', 'init_mcd': True},
                 'task_id': task_id}
 print(train_config)
@@ -99,11 +100,11 @@ print(train_config)
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
-methods = ['std', 'random']
-candidate_config = {'period': 10000,
+methods = ['std', 'random', 'entropy']
+candidate_config = {'period': 100,
                     'method': methods[task_id],
                     'n_transfers': 1,
-                    'n_samples': 50}
+                    'n_samples': 100}
 
 
 info_config = {'calc_performance_every': 1,

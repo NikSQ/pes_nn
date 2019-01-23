@@ -14,7 +14,7 @@ def load(name):
     np.random.seed(1234)
     indices = np.random.permutation(len(features))
 
-    tr_size = 5000
+    tr_size = 10
     va_size = 2500
     # all other samples are candidates
 

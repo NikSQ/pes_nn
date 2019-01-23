@@ -14,6 +14,7 @@ class Experiment:
         self.data_config = data_config
         self.info_config = info_config
         self.nn = None
+        self.l_data = None
 
     def train(self):
         max_epochs = self.train_config['max_epochs']
@@ -21,6 +22,7 @@ class Experiment:
 
         data_dict = load(self.data_config['dataset'])
         l_data = LabeledData(self.data_config, data_dict)
+        self.l_data = l_data
         self.nn = NN(self.nn_config, self.train_config, self.info_config, l_data)
 
         #  Trained NN is optionally stored and can later be loaded with the pretrain option
@@ -67,6 +69,8 @@ class Experiment:
 
                     if self.candidate_config['method'] == 'random':
                         transfer_idc = random_candidate_idc
+                    elif self.candidate_config['method'] == 'entropy':
+                        transfer_idc = np.argsort(self.get_predictive_entropy())
                     else:
                         transfer_idc = sorted_candidate_idc
 
@@ -105,5 +109,25 @@ class Experiment:
             model_saver.save(sess, model_path)
         writer.close()
         return self.nn.nn_data
+
+    def get_predictive_entropy(self):
+        means = self.nn.nn_data.output_dict['ca']['ind_means'][:self.l_data.data_config['ca']['batch_size'], :]
+        var = self.train_config['out_var']
+        recip_var = 1 / (8 * var)
+        entropies = np.zeros((means.shape[0],))
+        for sample_i in range(means.shape[1]):
+            xi = []
+            for sample_j in range(sample_i, means.shape[1]):
+                factor = 1 if sample_i == sample_j else 2
+                xi.append(np.expand_dims(factor * recip_var * np.square(means[:, sample_i] - means[:, sample_j]),
+                                         axis=1))
+            xi = np.concatenate(xi, axis=1)
+            m = np.max(xi, axis=1)
+            entropies += m + np.log(np.sum(np.exp(xi - m[:, None])))
+        return entropies
+
+
+
+
 
 

@@ -69,7 +69,7 @@ class NNData:
     # Adds operations which calculate the output for a dataset, given by its respective data_key
     def add_output(self, mean_op, var_op):
         for data_key in self.info_config['record_output']:
-            self.output_dict.update({data_key: {'mean': [], 'var': []}})
+            self.output_dict.update({data_key: {'ind_means': None, 'mean': [], 'var': []}})
         self.output_ops = [mean_op, var_op]
 
     # Retrieves metrics of the performance of the datasets
@@ -122,6 +122,7 @@ class NNData:
                         single_output.append(mean)
                     output_list.append(np.expand_dims(np.concatenate(single_output, axis=0), axis=1))
                 output = np.concatenate(output_list, axis=1)
+                self.output_dict[data_key]['ind_means'] = output
                 self.output_dict[data_key]['mean'].append(np.mean(output, axis=1))
                 self.output_dict[data_key]['var'].append(np.var(output, axis=1, ddof=1))
 
