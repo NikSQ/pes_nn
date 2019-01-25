@@ -11,11 +11,11 @@ def load(name):
     features = data['Gs']
     features = (features - np.mean(features, axis=(0, 1))) / np.std(features, axis=(0, 1))
     # This is just used for testing the implementation
-    np.random.seed(1234)
+    #np.random.seed(1234)
     indices = np.random.permutation(len(features))
 
-    tr_size = 10
-    va_size = 2500
+    tr_size = 5
+    va_size = 500
     # all other samples are candidates
 
     data_dict = {'tr': dict(), 'va': dict(), 'ca': dict()}

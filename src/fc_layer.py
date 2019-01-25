@@ -24,6 +24,11 @@ class FCLayer:
         self.b_shape = (1, self.w_shape[1])
 
         with tf.variable_scope(self.layer_config['var_scope']):
+            self.d_bernoulli = tf.distributions.Bernoulli(probs=self.layer_config['keep_prob'], dtype=tf.float32)
+            self.d_gauss = tf.distributions.Normal(loc=1., scale=np.sqrt((1. - self.layer_config['gauss_prob']) *
+                                                                         self.layer_config['gauss_prob'])
+                                                   .astype(np.float32))
+
             # Normal distribution used for reparametrization
             self.gauss = tf.distributions.Normal(loc=0., scale=1.)
 
@@ -81,8 +86,14 @@ class FCLayer:
     def create_fp(self, x, is_training):
         with tf.name_scope(self.layer_config['var_scope']):
             a = tf.matmul(x, self.w) + self.b
-            return tf.layers.dropout(inputs=self.apply_act_func(a), rate=1.-self.layer_config['keep_prob'],
-                                     training=is_training)
+            if self.layer_config['dropout'] == 'ber':
+                output = self.apply_act_func(a)
+                return tf.layers.dropout(inputs=output, rate=1.-self.layer_config['keep_prob'],
+                                         training=is_training)
+            elif self.layer_config['dropout'] == 'gauss':
+                return self.apply_act_func(tf.cond(is_training,
+                                                   lambda: tf.multiply(a, self.d_gauss.sample(tf.shape(a))),
+                                                   lambda: a))
 
     def apply_act_func(self, a):
         if self.layer_config['act_func'] == 'linear':

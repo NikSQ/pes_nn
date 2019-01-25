@@ -43,6 +43,8 @@ hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
                    'keep_prob': .95,
+                   'gauss_prob': .95,
+                   'dropout': 'ber',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.1,
                                    'w': 'xavier',
@@ -87,8 +89,8 @@ nn_config['ag'] = ag_nn_config
 # the pfp requires the network to output a probability density instead of a single energy.
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
-train_config = {'learning_rate': .003,
-                'max_epochs': 2000,
+train_config = {'learning_rate': .00008,
+                'max_epochs': 10000,
                 'min_error': 0.,
                 'out_var': 0.2,
                 'w_prior_v': 0.6,

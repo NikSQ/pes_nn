@@ -124,6 +124,7 @@ class Experiment:
             xi = np.concatenate(xi, axis=1)
             m = np.max(xi, axis=1)
             entropies += m + np.log(np.sum(np.exp(xi - m[:, None])))
+        print(entropies)
         return entropies
 
 
