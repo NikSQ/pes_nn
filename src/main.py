@@ -13,10 +13,10 @@ try:
     task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
 except KeyError:
     print('NO SLURM TASK ID FOUND')
-    task_id = 2
+    task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'test'
+filename = 'std_ber_keep'
 
 runs = 10
 
@@ -31,6 +31,8 @@ data_config = {'dataset': 'ag55',
                'va': {'minibatch_enabled': False,
                       'minibatch_size': 1000},
                'ca': {'minibatch_enabled': False,
+                      'minibatch_size': 1000},
+               'te': {'minibatch_enabled': False,
                       'minibatch_size': 1000}}
 
 # TODO: More sophisticated initialization of variance
@@ -40,10 +42,11 @@ data_config = {'dataset': 'ag55',
 # act_func: activation function. at the moment the functions 'tanh', 'sig' and 'linear' are possible
 # keep_prob: keep probabilities for dropout. Is only required of training method is MC dropout
 # init_scheme: method of initialization for variables. (see fc_layer.py)
+keep_probs = [.85, .9, .95]
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': .95,
+                   'keep_prob': keep_probs[task_id],
                    'gauss_prob': .95,
                    'dropout': 'ber',
                    'init_scheme': {'w_m': 'xavier',
@@ -102,9 +105,9 @@ print(train_config)
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
-methods = ['std', 'random', 'entropy']
+#methods = ['std', 'random', 'entropy']
 candidate_config = {'period': 100,
-                    'method': methods[task_id],
+                    'method': 'std',
                     'n_transfers': 1,
                     'n_samples': 50}
 

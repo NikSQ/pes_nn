@@ -19,7 +19,7 @@ def load(name):
     te_size = 1000
     # all other samples are candidates
 
-    data_dict = {'tr': dict(), 'va': dict(), 'ca': dict()}
+    data_dict = {'tr': dict(), 'va': dict(), 'ca': dict(), 'te': dict()}
     tr_range = indices[:tr_size]
     va_range = indices[tr_size:va_size+tr_size]
     te_range = indices[tr_size+va_size:tr_size+va_size+te_size]
