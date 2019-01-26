@@ -20,12 +20,12 @@ def save_to_file(nn_datas, path):
     np.save(path + '_epochs', np.asarray(metric_dicts[0]['epoch']))
 
     # TODO: Implement computation of mean and variance over different nn_data (just one supported atm)
-    ordered_vars = np.concatenate(nn_datas[0].var_dict['ordered'], axis=1)
-    random_vars = np.concatenate(nn_datas[0].var_dict['random'], axis=1)
-    epochs = nn_datas[0].var_dict['epoch']
-    np.save(path + '_v_ordered', ordered_vars)
-    np.save(path + '_v_random', random_vars)
-    np.save(path + '_v_epochs', epochs)
+    #ordered_vars = np.concatenate(nn_datas[0].var_dict['ordered'], axis=1)
+    #random_vars = np.concatenate(nn_datas[0].var_dict['random'], axis=1)
+    #epochs = nn_datas[0].var_dict['epoch']
+    #np.save(path + '_v_ordered', ordered_vars)
+    #np.save(path + '_v_random', random_vars)
+    #np.save(path + '_v_epochs', epochs)
 
 
 def convert_to_array(metric_dicts, data_key):
@@ -61,10 +61,10 @@ class NNData:
         self.var_dict['epoch'].append(epoch)
 
     # Adds operations which calculate metrics for a dataset, given by its respective data_key
-    def add_metrics(self, vfe_op, kl_op=tf.squeeze(tf.zeros(1)), elogl_op=tf.squeeze(tf.zeros(1))):
+    def add_metrics(self, vfe_op, kl_op=None, elogl_op=None):
         for data_key in self.info_config['record_metrics']:
-            self.metric_dict.update({data_key: {'vfe': [], 'kl': [], 'elogl': []}})
-        self.metric_ops = [vfe_op, kl_op, elogl_op]
+            self.metric_dict.update({data_key: {'vfe': []}})
+        self.metric_ops = vfe_op
 
     # Adds operations which calculate the output for a dataset, given by its respective data_key
     def add_output(self, mean_op, var_op):
@@ -78,18 +78,11 @@ class NNData:
             results = self.l_data.run(sess, self.metric_ops, data_key, shuffle=False, feed_t=True)
 
             cum_vfe = 0
-            cum_elogl = 0
-            kl = 0
-            for vfe, kl_loss, elogl in results:
+            for vfe in results:
                 cum_vfe += vfe
-                cum_elogl += elogl
-                kl = kl_loss
             vfe = cum_vfe / len(results)
-            elogl = cum_elogl / len(results)
 
             self.metric_dict[data_key]['vfe'].append(vfe)
-            self.metric_dict[data_key]['kl'].append(kl)
-            self.metric_dict[data_key]['elogl'].append(elogl)
         self.metric_dict['epoch'].append(epoch)
 
 
@@ -130,7 +123,6 @@ class NNData:
 
     # Prints the some of the latest metrics of the performance on training and validation set
     def print_metrics(self):
-        print('{:3} | tr vfe: {:6.4f}, Va vfe: {:8.5f}, Tr Elogl {:8.5f}, Tr KL {:5.5f}'
+        print('{:3} | tr vfe: {:6.4f}, Va vfe: {:8.5f}'
               .format(self.metric_dict['epoch'][-1], self.metric_dict['tr']['vfe'][-1],
-                      self.metric_dict['va']['vfe'][-1], self.metric_dict['tr']['elogl'][-1],
-                      self.metric_dict['tr']['kl'][-1]))
+                      self.metric_dict['va']['vfe'][-1]))

@@ -15,16 +15,23 @@ def load(name):
     indices = np.random.permutation(len(features))
 
     tr_size = 5
-    va_size = 500
+    va_size = 1000
+    te_size = 1000
     # all other samples are candidates
 
     data_dict = {'tr': dict(), 'va': dict(), 'ca': dict()}
-    data_dict['tr']['x'] = features[indices[:tr_size]]
-    data_dict['tr']['t'] = labels[indices[:tr_size]].astype(np.float64)
-    data_dict['va']['x'] = features[indices[tr_size:va_size+tr_size]]
-    data_dict['va']['t'] = labels[indices[tr_size:va_size+tr_size]].astype(np.float64)
-    data_dict['ca']['x'] = features[indices[va_size+tr_size:]]
-    data_dict['ca']['t'] = labels[indices[va_size+tr_size:]].astype(np.float64)
+    tr_range = indices[:tr_size]
+    va_range = indices[tr_size:va_size+tr_size]
+    te_range = indices[tr_size+va_size:tr_size+va_size+te_size]
+    ca_range = indices[tr_size+va_size+te_size:]
+    data_dict['tr']['x'] = features[tr_range]
+    data_dict['tr']['t'] = labels[tr_range].astype(np.float64)
+    data_dict['va']['x'] = features[va_range]
+    data_dict['va']['t'] = labels[va_range].astype(np.float64)
+    data_dict['ca']['x'] = features[ca_range]
+    data_dict['ca']['t'] = labels[ca_range].astype(np.float64)
+    data_dict['te']['x'] = features[te_range]
+    data_dict['te']['t'] = labels[te_range].astype(np.float64)
     return data_dict
 
 

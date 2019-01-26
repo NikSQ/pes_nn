@@ -108,8 +108,7 @@ class FCLayer:
     def compute_kl(self, w_prior_v):
         return tf.reduce_sum(self.get_kl(w_prior_v, self.w_m, self.w_v))
 
-    @staticmethod
-    def get_kl(prior_v, post_m, post_v):
+    def get_kl(self, prior_v, post_m, post_v):
         return 0.5 * (tf.log(tf.divide(prior_v, post_v)) + tf.divide(post_v + tf.square(post_m), prior_v)) - 0.5
 
 

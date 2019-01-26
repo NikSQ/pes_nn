@@ -8,6 +8,7 @@ from src.nn import NN
 
 class Experiment:
     def __init__(self, nn_config, train_config, data_config, candidate_config, info_config):
+        tf.reset_default_graph()
         self.nn_config = nn_config
         self.train_config = train_config
         self.candidate_config = candidate_config
