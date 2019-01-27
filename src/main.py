@@ -16,9 +16,9 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'gauss_95_methods'
+filename = 'ber_90_methods'
 
-runs = 5
+runs = 4
 
 # data_config contains configuration about data
 # dataset: name of the dataset as used in data_loader.py
@@ -46,9 +46,9 @@ keep_probs = [.85, .9, .95]
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': keep_probs[task_id],
+                   'keep_prob': .9,
                    'gauss_prob': .95,
-                   'dropout': 'gauss',
+                   'dropout': 'ber',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.1,
                                    'w': 'xavier',
@@ -107,7 +107,9 @@ test_tr_config['learning_rate'] = .00005
 test_tr_config['max_epochs'] = 5000
 test_nn_config = copy.deepcopy(nn_config)
 test_nn_config['ag']['layer_configs'][1]['keep_prob'] = .85
+test_nn_config['ag']['layer_configs'][1]['dropout'] = 'ber'
 test_nn_config['ag']['layer_configs'][2]['keep_prob'] = .85
+test_nn_config['ag']['layer_configs'][2]['dropout'] = 'ber'
 
 
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
@@ -147,7 +149,7 @@ for run in range(runs):
     c_period = candidate_config['period']
 
     candidate_config['period'] = test_tr_config['max_epochs']
-    nn_data, transfer_idc = experiment.train(transfer_idc=experiment.l_data['tr']['range'] + transfer_idc, nn_config=test_nn_config, train_config=test_tr_config)
+    nn_data, transfer_idc = experiment.train(transfer_idc=experiment.l_data.data_dict['tr']['range'].tolist() + transfer_idc, nn_config=test_nn_config, train_config=test_tr_config)
     nn2_datas.append(nn_data)
     candidate_config = ca_config
 print('----------------------------')
