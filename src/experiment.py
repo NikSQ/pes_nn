@@ -7,21 +7,23 @@ from src.nn import NN
 
 
 class Experiment:
-    def __init__(self, nn_config, train_config, data_config, candidate_config, info_config):
-        tf.reset_default_graph()
-        self.nn_config = nn_config
-        self.train_config = train_config
+    def __init__(self, data_config, candidate_config, info_config):
         self.candidate_config = candidate_config
         self.data_config = data_config
         self.info_config = info_config
+        self.train_config = None
+        self.nn_config = None
         self.nn = None
         self.l_data = None
 
-    def train(self):
+    def train(self, transfer_idc=None, nn_config=None, train_config=None):
+        self.train_config = train_config
+        self.nn_config = nn_config
+        tf.reset_default_graph()
         max_epochs = self.train_config['max_epochs']
         min_error = self.train_config['min_error']
 
-        data_dict = load(self.data_config['dataset'])
+        data_dict = load(self.data_config['dataset'], transfer_idc)
         l_data = LabeledData(self.data_config, data_dict)
         self.l_data = l_data
         self.nn = NN(self.nn_config, self.train_config, self.info_config, l_data)
@@ -109,7 +111,7 @@ class Experiment:
 
             model_saver.save(sess, model_path)
         writer.close()
-        return self.nn.nn_data
+        return self.nn.nn_data, self.l_data.transfer_idcs
 
     def get_predictive_entropy(self):
         means = self.nn.nn_data.output_dict['ca']['ind_means'][:self.l_data.data_config['ca']['batch_size'], :]

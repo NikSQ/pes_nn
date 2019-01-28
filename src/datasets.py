@@ -9,6 +9,7 @@ class LabeledData:
     def __init__(self, data_config, data_dict):
         self.data_dict = data_dict
         self.data_config = data_config
+        self.transfer_idcs = []
         self.update_shapes()
 
         with tf.variable_scope('datasets'):
@@ -28,7 +29,12 @@ class LabeledData:
                 self.data_config[data_key]['n_minibatches'] = 1
                 self.data_config[data_key]['batch_size'] = self.data_dict[data_key]['x'].shape[0]
 
-    def transfer_samples(self, transfer_idc, src_data_key='ca', tgt_data_key='tr'):
+    def transfer_samples(self, transfer_idc, src_data_key='ca', tgt_data_key='tr'): # only use with default vars
+        print('transferidc {}'.format(self.data_dict['ca']['range'][transfer_idc]))
+        self.transfer_idcs = self.transfer_idcs + list(self.data_dict['ca']['range'][transfer_idc])
+        print(self.transfer_idcs)
+        np.delete(self.data_dict['ca']['range'], transfer_idc)
+
         self.data_dict[tgt_data_key]['x'] = np.concatenate([self.data_dict[tgt_data_key]['x'],
                                                             self.data_dict[src_data_key]['x'][transfer_idc]], axis=0)
         self.data_dict[tgt_data_key]['t'] = np.concatenate([self.data_dict[tgt_data_key]['t'],

@@ -1,7 +1,7 @@
 import sys
 import os
 import copy
-import tensorflow as tf
+import numpy as np
 
 sys.path.append('../')
 
@@ -16,9 +16,9 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'std_ber_keep'
+filename = 'gauss_95_methods'
 
-runs = 10
+runs = 5
 
 # data_config contains configuration about data
 # dataset: name of the dataset as used in data_loader.py
@@ -48,7 +48,7 @@ hidden_1_config = {'var_scope': 'hidden_1',
                    'act_func': 'tanh',
                    'keep_prob': keep_probs[task_id],
                    'gauss_prob': .95,
-                   'dropout': 'ber',
+                   'dropout': 'gauss',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.1,
                                    'w': 'xavier',
@@ -93,7 +93,7 @@ nn_config['ag'] = ag_nn_config
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
 train_config = {'learning_rate': .00008,
-                'max_epochs': 10,
+                'max_epochs': 5000,
                 'min_error': 0.,
                 'out_var': 0.2,
                 'w_prior_v': 0.6,
@@ -102,14 +102,22 @@ train_config = {'learning_rate': .00008,
                 'task_id': task_id}
 print(train_config)
 
+test_tr_config = copy.deepcopy(train_config)
+test_tr_config['learning_rate'] = .00005
+test_tr_config['max_epochs'] = 5000
+test_nn_config = copy.deepcopy(nn_config)
+test_nn_config['ag']['layer_configs'][1]['keep_prob'] = .85
+test_nn_config['ag']['layer_configs'][2]['keep_prob'] = .85
+
+
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
-#methods = ['std', 'random', 'entropy']
+methods = ['std', 'random', 'entropy']
 candidate_config = {'period': 100,
-                    'method': 'std',
+                    'method': methods[task_id],
                     'n_transfers': 1,
-                    'n_samples': 50}
+                    'n_samples': 20}
 
 
 info_config = {'calc_performance_every': 1,
@@ -127,10 +135,27 @@ result_config = {'save_results': True,
 
 
 nn_datas = []
+nn2_datas = []
+transfer_idcs = []
 for run in range(runs):
-    experiment = Experiment(nn_config, train_config, data_config, candidate_config, info_config)
-    nn_datas.append(experiment.train())
+    experiment = Experiment(data_config, candidate_config, info_config)
+    nn_data, transfer_idc = experiment.train(nn_config=nn_config, train_config=train_config)
+    nn_datas.append(nn_data)
+    print('transferred {}'.format(transfer_idc))
+    transfer_idcs.append(np.expand_dims(transfer_idc, axis=0))
+    ca_config = copy.deepcopy(candidate_config)
+    c_period = candidate_config['period']
+
+    candidate_config['period'] = test_tr_config['max_epochs']
+    nn_data, transfer_idc = experiment.train(transfer_idc=experiment.l_data['tr']['range'] + transfer_idc, nn_config=test_nn_config, train_config=test_tr_config)
+    nn2_datas.append(nn_data)
+    candidate_config = ca_config
 print('----------------------------')
+print(transfer_idcs[0].shape)
+transfer_idcs = np.concatenate(transfer_idcs, axis=0)
+print(transfer_idcs.shape)
+np.save(result_config['path'] + '_transferidcs', transfer_idcs)
 if result_config['save_results']:
     save_to_file(nn_datas, result_config['path'])
+    save_to_file(nn2_datas, result_config['path'] + str('_noca'))
 
