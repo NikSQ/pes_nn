@@ -16,7 +16,7 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'ber_90_methods'
+filename = 'gauss_p2_l9'
 
 runs = 4
 
@@ -47,15 +47,15 @@ hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
                    'keep_prob': .9,
-                   'gauss_prob': .95,
-                   'dropout': 'ber',
+                   'gauss_std': .2,
+                   'dropout': 'gauss',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.1,
                                    'w': 'xavier',
                                    'b_m': 'zeros',
                                    'b_v': 0.1,
                                    'b': 'zeros'}}
-
+print('dropout: {}, prob: {}, std: {}'.format(hidden_1_config['dropout'], hidden_1_config['keep_prob'], hidden_1_config['gauss_std']))
 hidden_2_config = copy.deepcopy(hidden_1_config)
 hidden_2_config['var_scope'] = 'hidden_2'
 output_config = copy.deepcopy(hidden_1_config)
@@ -82,6 +82,8 @@ ag_nn_config = {'layout': [54, 40, 40, 1],
 nn_config = {'data_m': 10000000.}
 nn_config['atoms'] = ['ag'] * 55
 nn_config['ag'] = ag_nn_config
+nn_config['l2'] = 9.
+print('l2: {}'.format(nn_config['l2']))
 # This is the configuration for training related settings
 # learning_rate: initial learning rate of the adam optimizer
 # max_epochs: maximum amount of epochs the nn is trained
@@ -110,6 +112,8 @@ test_nn_config['ag']['layer_configs'][1]['keep_prob'] = .85
 test_nn_config['ag']['layer_configs'][1]['dropout'] = 'ber'
 test_nn_config['ag']['layer_configs'][2]['keep_prob'] = .85
 test_nn_config['ag']['layer_configs'][2]['dropout'] = 'ber'
+test_nn_config['ag']['layout'] = [54, 40, 40, 1]
+test_nn_config['l2'] = 0.
 
 
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
@@ -119,7 +123,7 @@ methods = ['std', 'random', 'entropy']
 candidate_config = {'period': 100,
                     'method': methods[task_id],
                     'n_transfers': 1,
-                    'n_samples': 20}
+                    'n_samples': 200}
 
 
 info_config = {'calc_performance_every': 1,

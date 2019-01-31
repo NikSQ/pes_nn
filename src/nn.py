@@ -70,7 +70,13 @@ class NN:
                 self.nn_data.add_metrics(vfe)
 
             optimizer = tf.train.AdamOptimizer(learning_rate=self.train_config['learning_rate'])
-            gradients = optimizer.compute_gradients(vfe)
+            trainable_variables = tf.trainable_variables()
+            l2_loss = 0
+            for var in trainable_variables:
+                if var.name.endswith('w:0'):
+                    l2_loss += tf.nn.l2_loss(var)
+
+            gradients = optimizer.compute_gradients(vfe + self.nn_config['l2'] * tf.cast(l2_loss, dtype=tf.float64))
 
             summaries = []
             for grad, var in gradients:

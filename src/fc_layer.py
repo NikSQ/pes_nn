@@ -25,9 +25,7 @@ class FCLayer:
 
         with tf.variable_scope(self.layer_config['var_scope']):
             self.d_bernoulli = tf.distributions.Bernoulli(probs=self.layer_config['keep_prob'], dtype=tf.float32)
-            self.d_gauss = tf.distributions.Normal(loc=1., scale=np.sqrt((1. - self.layer_config['gauss_prob']) *
-                                                                         self.layer_config['gauss_prob'])
-                                                   .astype(np.float32))
+            self.d_gauss = tf.distributions.Normal(loc=1., scale=self.layer_config['gauss_std'])
 
             # Normal distribution used for reparametrization
             self.gauss = tf.distributions.Normal(loc=0., scale=1.)

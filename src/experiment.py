@@ -74,8 +74,10 @@ class Experiment:
                         transfer_idc = random_candidate_idc
                     elif self.candidate_config['method'] == 'entropy':
                         transfer_idc = np.argsort(self.get_predictive_entropy())
-                    else:
+                    elif self.candidate_config['method'] == 'std':
                         transfer_idc = sorted_candidate_idc
+                    else:
+                        raise Exception()
 
                     l_data.transfer_samples(transfer_idc[-n_transfers:])
 
