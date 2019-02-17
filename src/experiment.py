@@ -63,12 +63,9 @@ class Experiment:
 
                     self.nn.nn_data.retrieve_output(sess, epoch, n_samples)
                     n_transfers = self.candidate_config['n_transfers']
-                    sorted_candidate_idc = np.argsort(self.nn.nn_data.output_dict['ca']['var'][-1]
+                    sorted_candidate_idc = np.argsort(self.nn.nn_data.output_dict['ca']['var']
                                                       [:l_data.data_config['ca']['batch_size']])
                     random_candidate_idc = np.random.permutation(sorted_candidate_idc)
-
-                    self.nn.nn_data.add_variances(sorted_candidate_idc[-n_transfers:],
-                                                  random_candidate_idc[-n_transfers:], epoch)
 
                     if self.candidate_config['method'] == 'random':
                         transfer_idc = random_candidate_idc

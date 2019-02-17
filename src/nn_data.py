@@ -51,14 +51,9 @@ class NNData:
         self.l_data = l_data
         self.metric_dict = {'epoch': list()}
         self.metric_ops = None
-        self.output_dict = {'epoch': list()}
+        self.output_dict = dict()
         self.output_ops = None
         self.var_dict = {'ordered': [], 'random': [], 'epoch': []}
-
-    def add_variances(self, o_transfer_idc, r_transfer_idc, epoch):
-        self.var_dict['ordered'].append(np.expand_dims(self.output_dict['ca']['var'][-1][o_transfer_idc], axis=1))
-        self.var_dict['random'].append(np.expand_dims(self.output_dict['ca']['var'][-1][r_transfer_idc], axis=1))
-        self.var_dict['epoch'].append(epoch)
 
     # Adds operations which calculate metrics for a dataset, given by its respective data_key
     def add_metrics(self, vfe_op, kl_op=None, elogl_op=None):
@@ -69,7 +64,7 @@ class NNData:
     # Adds operations which calculate the output for a dataset, given by its respective data_key
     def add_output(self, mean_op, var_op):
         for data_key in self.info_config['record_output']:
-            self.output_dict.update({data_key: {'ind_means': None, 'mean': [], 'var': []}})
+            self.output_dict.update({data_key: {'ind_means': None, 'mean': None, 'var': None}})
         self.output_ops = [mean_op, var_op]
 
     # Retrieves metrics of the performance of the datasets
@@ -116,10 +111,9 @@ class NNData:
                     output_list.append(np.expand_dims(np.concatenate(single_output, axis=0), axis=1))
                 output = np.concatenate(output_list, axis=1)
                 self.output_dict[data_key]['ind_means'] = output
-                self.output_dict[data_key]['mean'].append(np.mean(output, axis=1))
-                self.output_dict[data_key]['var'].append(np.var(output, axis=1, ddof=1))
+                self.output_dict[data_key]['mean'] = np.mean(output, axis=1)
+                self.output_dict[data_key]['var'] = np.var(output, axis=1, ddof=1)
 
-        self.output_dict['epoch'].append(epoch)
 
     # Prints the some of the latest metrics of the performance on training and validation set
     def print_metrics(self):
