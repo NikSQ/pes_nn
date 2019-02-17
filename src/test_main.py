@@ -16,16 +16,11 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'ber_p95_l00'
+filename_old = 'agauss_p50_l09'
+filename = filename_old + '_test'
 
-l2 = 0.
-keep = .95
+runs = 4
 
-do = 'ber'
-#do = 'gauss'
-
-std = 0.
-runs = 5
 # data_config contains configuration about data
 # dataset: name of the dataset as used in data_loader.py
 # each part of the dataset has a data_key. Those are 'tr' for train, 'va' for validation, 'te' for test, 'ca' for candidate.
@@ -51,9 +46,9 @@ data_config = {'dataset': 'ag55',
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': keep,
-                   'gauss_std': std,
-                   'dropout': do,
+                   'keep_prob': .9,
+                   'gauss_std': .0,
+                   'dropout': 'ber',
                    'init_scheme': {'w_m': 'xavier',
                                    'w_v': 0.1,
                                    'w': 'xavier',
@@ -88,7 +83,7 @@ ag_nn_config = {'layout': [54, 40, 40, 1],
 nn_config = {'data_m': 10000000.}
 nn_config['atoms'] = ['ag'] * 55
 nn_config['ag'] = ag_nn_config
-nn_config['l2'] = l2
+nn_config['l2'] = 0.
 print('l2: {}'.format(nn_config['l2']))
 # This is the configuration for training related settings
 # learning_rate: initial learning rate of the adam optimizer
@@ -101,7 +96,7 @@ print('l2: {}'.format(nn_config['l2']))
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
 train_config = {'learning_rate': .00008,
-                'max_epochs': 2000,
+                'max_epochs': 20,
                 'min_error': 0.,
                 'out_var': 0.2,
                 'w_prior_v': 0.6,
@@ -114,10 +109,10 @@ print(train_config)
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
 methods = ['std', 'random', 'entropy']
-candidate_config = {'period': 50,
+candidate_config = {'period': 50000,
                     'method': methods[task_id],
                     'n_transfers': 1,
-                    'n_samples': 200}
+                    'n_samples': 3}
 print(candidate_config)
 
 
@@ -138,26 +133,15 @@ result_config = {'save_results': True,
 nn_datas = []
 transfer_idcs = []
 tr_idcs = []
-
+filename_old = filename
+transfer_idcs = np.load('../numerical_results/' + filename_old + '_' + str(task_id) + '_transferidcs.npy')
+tr_idcs = np.load('../numerical_results/' + filename_old + '_' + str(task_id) + '_tr_idcs.npy')
+tr_set_idcs = np.concatenate([transfer_idcs, tr_idcs], axis=1)
 for run in range(runs):
     experiment = Experiment(data_config, candidate_config, info_config)
-    nn_data, transfer_idc = experiment.train(nn_config=nn_config, train_config=train_config)
+    nn_data, u = experiment.train(transfer_idc=tr_set_idcs[run, :], nn_config=nn_config, train_config=train_config)
     nn_datas.append(nn_data)
-    print('transferred {}'.format(transfer_idc))
-    transfer_idcs.append(np.expand_dims(transfer_idc, axis=0))
-    tr_idcs.append(np.expand_dims(experiment.l_data.data_dict['tr']['range'], axis=0))
-    print('new')
-    print(tr_idcs[0].shape)
-    print(transfer_idcs[0].shape)
 
-print('----------------------------')
-print(transfer_idcs[0].shape)
-transfer_idcs = np.concatenate(transfer_idcs, axis=0)
-tr_idcs = np.concatenate(tr_idcs, axis=0)
-np.save(result_config['path'] + '_transferidcs', transfer_idcs)
-np.save(result_config['path'] + '_tr_idcs', tr_idcs)
-
-print(transfer_idcs.shape)
 if result_config['save_results']:
     save_to_file(nn_datas, result_config['path'])
 

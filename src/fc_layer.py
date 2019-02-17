@@ -25,7 +25,7 @@ class FCLayer:
 
         with tf.variable_scope(self.layer_config['var_scope']):
             self.d_bernoulli = tf.distributions.Bernoulli(probs=self.layer_config['keep_prob'], dtype=tf.float32)
-            self.d_gauss = tf.distributions.Normal(loc=1., scale=self.layer_config['gauss_std'])
+            self.d_gauss = tf.distributions.Normal(loc=0., scale=self.layer_config['gauss_std'])
 
             # Normal distribution used for reparametrization
             self.gauss = tf.distributions.Normal(loc=0., scale=1.)
@@ -90,7 +90,7 @@ class FCLayer:
                                          training=is_training)
             elif self.layer_config['dropout'] == 'gauss':
                 return self.apply_act_func(tf.cond(is_training,
-                                                   lambda: tf.multiply(a, self.d_gauss.sample(tf.shape(a))),
+                                                   lambda: tf.add(a, self.d_gauss.sample(tf.shape(a))),
                                                    lambda: a))
 
     def apply_act_func(self, a):

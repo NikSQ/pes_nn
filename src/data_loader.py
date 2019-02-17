@@ -18,26 +18,27 @@ def load(name, tr_idc=None):
     indices = np.random.permutation(len(features))
     if tr_idc is not None:
         tr_range = tr_idc
+
     else:
         tr_range = indices[:tr_size]
+        np.delete(indices, np.where(indices == tr_idc))
 
-    np.delete(indices, np.where(indices == tr_idc))
-    # all other samples are candidates
-    va_range = indices[:va_size]
-    te_range = indices[va_size:va_size+te_size]
-    ca_range = indices[va_size+te_size:]
+        # all other samples are candidates
+        va_range = indices[:va_size]
+        te_range = indices[va_size:va_size+te_size]
+        ca_range = indices[va_size+te_size:]
 
-    data_dict = {'tr': dict(), 'va': dict(), 'ca': dict(), 'te': dict()}
-    data_dict['tr']['x'] = features[tr_range]
-    data_dict['tr']['t'] = labels[tr_range].astype(np.float64)
-    data_dict['va']['x'] = features[va_range]
-    data_dict['va']['t'] = labels[va_range].astype(np.float64)
-    data_dict['ca']['x'] = features[ca_range]
-    data_dict['ca']['t'] = labels[ca_range].astype(np.float64)
-    data_dict['te']['x'] = features[te_range]
-    data_dict['te']['t'] = labels[te_range].astype(np.float64)
-    data_dict['ca']['range'] = np.asarray(ca_range)
-    data_dict['tr']['range'] = np.asarray(tr_range)
+        data_dict = {'tr': dict(), 'va': dict(), 'ca': dict(), 'te': dict()}
+        data_dict['tr']['x'] = features[tr_range]
+        data_dict['tr']['t'] = labels[tr_range].astype(np.float64)
+        data_dict['va']['x'] = features[va_range]
+        data_dict['va']['t'] = labels[va_range].astype(np.float64)
+        data_dict['ca']['x'] = features[ca_range]
+        data_dict['ca']['t'] = labels[ca_range].astype(np.float64)
+        data_dict['te']['x'] = features[te_range]
+        data_dict['te']['t'] = labels[te_range].astype(np.float64)
+        data_dict['ca']['range'] = np.asarray(ca_range)
+        data_dict['tr']['range'] = np.asarray(tr_range)
     return data_dict
 
 

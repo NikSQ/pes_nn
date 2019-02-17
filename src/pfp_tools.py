@@ -23,9 +23,9 @@ def transform_sig_activation(a_mu, a_var):
 
 
 def transform_tanh_activation(a_mu, a_var):
-    mu, var = transform_sig_activation(2 * a_mu, 2 * a_var)
+    mu, var = transform_sig_activation(2 * a_mu, 4 * a_var)
     mu = 2 * mu - 1
-    var *= 2
+    var *= 4
     return mu, var
 
 
