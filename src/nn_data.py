@@ -56,7 +56,7 @@ class NNData:
         self.var_dict = {'ordered': [], 'random': [], 'epoch': []}
 
     # Adds operations which calculate metrics for a dataset, given by its respective data_key
-    def add_metrics(self, vfe_op, kl_op=None, elogl_op=None):
+    def add_metrics(self, vfe_op):
         for data_key in self.info_config['record_metrics']:
             self.metric_dict.update({data_key: {'vfe': []}})
         self.metric_ops = vfe_op

@@ -18,14 +18,27 @@ def get_initializer(init_scheme, shape):
 
 
 class FCLayer:
-    def __init__(self, atomic_nn_config, layer_idx):
+    def __init__(self, atomic_nn_config, layer_idx, batch_size):
         self.layer_config = atomic_nn_config['layer_configs'][layer_idx]
         self.w_shape = (atomic_nn_config['layout'][layer_idx-1], atomic_nn_config['layout'][layer_idx])
         self.b_shape = (1, self.w_shape[1])
 
         with tf.variable_scope(self.layer_config['var_scope']):
             self.d_bernoulli = tf.distributions.Bernoulli(probs=self.layer_config['keep_prob'], dtype=tf.float32)
-            self.d_gauss = tf.distributions.Normal(loc=0., scale=self.layer_config['gauss_std'])
+            self.d_mgauss = tf.distributions.Normal(loc=1., scale=self.layer_config['gauss_std'])
+            self.d_agauss = tf.distributions.Normal(loc=0., scale=self.layer_config['gauss_std'])
+
+            shape = (batch_size, self.b_shape[1])
+            self.noise = tf.get_variable(name='noise', shape=(), dtype=tf.float32, trainable=False)
+            if self.layer_config['dropout'] == 'ber':
+                self.sample_op = tf.assign(self.noise, self.d_bernoulli.sample(shape) / self.layer_config['keep_prob'],
+                                           validate_shape=False)
+            elif self.layer_config['dropout'] == 'mgauss':
+                self.sample_op = tf.assign(self.noise, self.d_mgauss.sample(shape), validate_shape=False)
+            elif self.layer_config['dropout'] == 'agauss':
+                self.sample_op = tf.assign(self.noise, self.d_agauss.sample(shape), validate_shape=False)
+            else:
+                raise Exception()
 
             # Normal distribution used for reparametrization
             self.gauss = tf.distributions.Normal(loc=0., scale=1.)
@@ -84,14 +97,25 @@ class FCLayer:
     def create_fp(self, x, is_training):
         with tf.name_scope(self.layer_config['var_scope']):
             a = tf.matmul(x, self.w) + self.b
-            if self.layer_config['dropout'] == 'ber':
-                output = self.apply_act_func(a)
-                return tf.layers.dropout(inputs=output, rate=1.-self.layer_config['keep_prob'],
-                                         training=is_training)
-            elif self.layer_config['dropout'] == 'gauss':
+            if self.layer_config['dropout'] == 'ber' or self.layer_config['dropout'] == 'mgauss':
                 return self.apply_act_func(tf.cond(is_training,
-                                                   lambda: tf.add(a, self.d_gauss.sample(tf.shape(a))),
+                                                   lambda: tf.multiply(a, self.noise),
                                                    lambda: a))
+            elif self.layer_config['dropout'] == 'agauss':
+                return self.apply_act_func(tf.cond(is_training,
+                                                   lambda: tf.add(a, self.noise),
+                                                   lambda: a))
+            else:
+                raise Exception()
+
+            #if self.layer_config['dropout'] == 'ber':
+                #output = self.apply_act_func(a)
+                #return tf.layers.dropout(inputs=output, rate=1.-self.layer_config['keep_prob'],
+                                         #training=is_training)
+            #elif self.layer_config['dropout'] == 'gauss':
+                #return self.apply_act_func(tf.cond(is_training,
+                                                   #lambda: tf.add(a, self.d_gauss.sample(tf.shape(a))),
+                                                   #lambda: a))
 
     def apply_act_func(self, a):
         if self.layer_config['act_func'] == 'linear':

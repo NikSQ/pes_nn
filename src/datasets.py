@@ -11,6 +11,7 @@ class LabeledData:
         self.data_config = data_config
         self.transfer_idcs = []
         self.update_shapes()
+        self.nn = None
 
         with tf.variable_scope('datasets'):
             self.x = tf.placeholder(name='x', dtype=tf.float32,
@@ -67,6 +68,7 @@ class LabeledData:
         if self.data_config[data_key]['minibatch_enabled']:
             results = []
             feed_dicts = self.create_minibatches(data_key, shuffle, feed_t, is_training)
+            # TODO Add noise sampling for minibatches
             for minibatch_idx in range(self.data_config[data_key]['n_minibatches']):
                 results.append(sess.run(ops, feed_dict=feed_dicts[minibatch_idx]))
             return results
@@ -75,6 +77,7 @@ class LabeledData:
                          self.is_training: is_training}
             if feed_t:
                 feed_dict[self.t] = self.data_dict[data_key]['t']
+            sess.run(self.nn.sample_op, feed_dict={self.nn.batch_size: self.data_config[data_key]['batch_size']})
             result = sess.run(ops, feed_dict=feed_dict)
             return [result]
 

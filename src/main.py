@@ -16,10 +16,10 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'ber_p95_l00'
+filename = 'correct_ber_p90_l00'
 
 l2 = 0.
-keep = .95
+keep = .90
 
 do = 'ber'
 #do = 'gauss'
@@ -101,7 +101,7 @@ print('l2: {}'.format(nn_config['l2']))
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
 train_config = {'learning_rate': .00008,
-                'max_epochs': 2000,
+                'max_epochs': 2005,
                 'min_error': 0.,
                 'out_var': 0.2,
                 'w_prior_v': 0.6,

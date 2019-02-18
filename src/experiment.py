@@ -27,6 +27,8 @@ class Experiment:
         l_data = LabeledData(self.data_config, data_dict)
         self.l_data = l_data
         self.nn = NN(self.nn_config, self.train_config, self.info_config, l_data)
+        # This cross reference became necessary once i realized I need to share noise among shared weights
+        self.l_data.nn = self.nn
 
         #  Trained NN is optionally stored and can later be loaded with the pretrain option
         model_path = '../models/' + self.info_config['filename'] + '_' + str(self.train_config['task_id'])

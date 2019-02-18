@@ -15,10 +15,12 @@ class NN:
         self.train_op = None
         self.atomic_nns = []
         self.gradient_summaries = None
+        self.batch_size = tf.placeholder(name='batch_size', shape=(), dtype=tf.int32)
 
         for atomic_nn_idx, atom in enumerate(self.nn_config['atoms']):
-            self.atomic_nns.append(AtomicNN(self.nn_config[atom], train_config, l_data, atomic_nn_idx))
-
+            self.atomic_nns.append(AtomicNN(self.nn_config[atom], train_config, l_data, atomic_nn_idx, self.batch_size))
+        # TODO: This needs to be changed if not all atomic NNs are of the same type
+        self.sample_op = self.atomic_nns[0].sample_op
         self.create_nn_graph()
 
     def create_nn_graph(self):
