@@ -50,16 +50,16 @@ class NNData:
         self.info_config = info_config
         self.l_data = l_data
         self.metric_dict = {'epoch': list()}
-        self.metric_ops = None
+        self.metric_ops = dict()
         self.output_dict = dict()
         self.output_ops = None
         self.var_dict = {'ordered': [], 'random': [], 'epoch': []}
 
     # Adds operations which calculate metrics for a dataset, given by its respective data_key
-    def add_metrics(self, vfe_op):
+    def add_metrics(self, op, op_name):
         for data_key in self.info_config['record_metrics']:
-            self.metric_dict.update({data_key: {'vfe': []}})
-        self.metric_ops = vfe_op
+            self.metric_dict.update({data_key: {op_name: []}})
+        self.metric_ops = op
 
     # Adds operations which calculate the output for a dataset, given by its respective data_key
     def add_output(self, mean_op, var_op):
@@ -70,7 +70,8 @@ class NNData:
     # Retrieves metrics of the performance of the datasets
     def retrieve_metrics(self, sess, epoch):
         for data_key in self.info_config['record_metrics']:
-            results = self.l_data.run(sess, self.metric_ops, data_key, shuffle=False, feed_t=True)
+            results = self.l_data.run(sess, self.metric_ops, data_key,
+                                      shuffle=False, feed_t=True)
 
             cum_vfe = 0
             for vfe in results:
@@ -79,7 +80,6 @@ class NNData:
 
             self.metric_dict[data_key]['vfe'].append(vfe)
         self.metric_dict['epoch'].append(epoch)
-
 
     # Calculates output (mean and variance) of given datasets
     # In case of pfp a single pass is made, in case of local reparameterization and MC dropout a hyperparameter controls

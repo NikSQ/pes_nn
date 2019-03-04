@@ -16,10 +16,12 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename_old = 'agauss_p50_l09'
-filename = filename_old + '_test'
+filename_old = 'correct_ber_p60_l00'
+filename = filename_old + '_testphase'
 
-runs = 4
+runs = 5
+l2 = 0.
+keep_prob = .95
 
 # data_config contains configuration about data
 # dataset: name of the dataset as used in data_loader.py
@@ -46,7 +48,7 @@ data_config = {'dataset': 'ag55',
 hidden_1_config = {'var_scope': 'hidden_1',
                    'layer_type': 'fc',
                    'act_func': 'tanh',
-                   'keep_prob': .9,
+                   'keep_prob': keep_prob,
                    'gauss_std': .0,
                    'dropout': 'ber',
                    'init_scheme': {'w_m': 'xavier',
@@ -83,7 +85,7 @@ ag_nn_config = {'layout': [54, 40, 40, 1],
 nn_config = {'data_m': 10000000.}
 nn_config['atoms'] = ['ag'] * 55
 nn_config['ag'] = ag_nn_config
-nn_config['l2'] = 0.
+nn_config['l2'] = l2
 print('l2: {}'.format(nn_config['l2']))
 # This is the configuration for training related settings
 # learning_rate: initial learning rate of the adam optimizer
@@ -95,8 +97,8 @@ print('l2: {}'.format(nn_config['l2']))
 # the pfp requires the network to output a probability density instead of a single energy.
 # method: training method for the NN. 'lr' - local reparametrization, 'pfp' - probabilistic forward pass, 'mcd': mc dropout
 # pretrain: if enabled, the network is initialized with weights stored in the given path
-train_config = {'learning_rate': .00008,
-                'max_epochs': 20,
+train_config = {'learning_rate': .0001,
+                'max_epochs': 30000,
                 'min_error': 0.,
                 'out_var': 0.2,
                 'w_prior_v': 0.6,
@@ -108,12 +110,6 @@ print(train_config)
 # period: after how many epochs the candidates are evaluated and partly transferred to training set
 # n_transfers: how many candidates are transferred to training set each time
 # n_samples: specifies how many forward passes should be made to estimate variance (not used by pfp)
-methods = ['std', 'random', 'entropy']
-candidate_config = {'period': 50000,
-                    'method': methods[task_id],
-                    'n_transfers': 1,
-                    'n_samples': 3}
-print(candidate_config)
 
 
 info_config = {'calc_performance_every': 1,
@@ -121,25 +117,25 @@ info_config = {'calc_performance_every': 1,
                'tensorboard': {'enabled': False, 'path': '../tb/' + filename, 'period': 200, 'graph': False,
                                'weights': True, 'gradients': True},
                'profiling': {'enabled': False, 'path': '../profiling/' + filename},
-               'record_metrics': ['tr', 'va', 'ca', 'te'],
-               'record_output': ['ca']}
+               'record_metrics': ['tr', 'va', 'te'],
+               'record_output': [],
+               'record_dataset': ['te']}
 
 result_config = {'save_results': True,
                  'path': '../numerical_results/' + filename + '_' + str(task_id),
                  'plot_results': False,
                  'print_final_stats': True}
 
-
+candidate_config ={'period': 10000000}
 nn_datas = []
 transfer_idcs = []
 tr_idcs = []
-filename_old = filename
 transfer_idcs = np.load('../numerical_results/' + filename_old + '_' + str(task_id) + '_transferidcs.npy')
 tr_idcs = np.load('../numerical_results/' + filename_old + '_' + str(task_id) + '_tr_idcs.npy')
 tr_set_idcs = np.concatenate([transfer_idcs, tr_idcs], axis=1)
 for run in range(runs):
     experiment = Experiment(data_config, candidate_config, info_config)
-    nn_data, u = experiment.train(transfer_idc=tr_set_idcs[run, :], nn_config=nn_config, train_config=train_config)
+    nn_data, u = experiment.train(transfer_idc=tr_set_idcs[run, :], nn_config=nn_config, train_config=train_config, run=run)
     nn_datas.append(nn_data)
 
 if result_config['save_results']:

@@ -69,7 +69,8 @@ class NN:
 
                 # For the sake of reusing code we refer to the loss as vfe
                 vfe = tf.reduce_mean(tf.square(t - y))
-                self.nn_data.add_metrics(vfe)
+                self.sample_loss = t-y
+                self.nn_data.add_metrics(vfe, 'vfe')
 
             optimizer = tf.train.AdamOptimizer(learning_rate=self.train_config['learning_rate'])
             trainable_variables = tf.trainable_variables()

@@ -16,10 +16,10 @@ except KeyError:
     task_id = 0
     print('Using ID {} instead'.format(task_id))
 
-filename = 'correct_ber_p90_l00'
+filename = 'correct_ber_p95_l00'
 
 l2 = 0.
-keep = .90
+keep = .95
 
 do = 'ber'
 #do = 'gauss'
@@ -127,7 +127,8 @@ info_config = {'calc_performance_every': 1,
                                'weights': True, 'gradients': True},
                'profiling': {'enabled': False, 'path': '../profiling/' + filename},
                'record_metrics': ['tr', 'va', 'ca', 'te'],
-               'record_output': ['ca']}
+               'record_output': ['ca'],
+               'record_dataset': []}
 
 result_config = {'save_results': True,
                  'path': '../numerical_results/' + filename + '_' + str(task_id),

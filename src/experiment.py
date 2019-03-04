@@ -16,7 +16,7 @@ class Experiment:
         self.nn = None
         self.l_data = None
 
-    def train(self, transfer_idc=None, nn_config=None, train_config=None):
+    def train(self, transfer_idc=None, nn_config=None, train_config=None, run=None):
         self.train_config = train_config
         self.nn_config = nn_config
         tf.reset_default_graph()
@@ -39,6 +39,8 @@ class Experiment:
             var_summaries.append(tf.summary.histogram(variable.name, variable))
         var_summaries = tf.summary.merge(var_summaries)
 
+        sample_loss = None
+        min_va = np.inf
         with tf.Session() as sess:
             # if self.info_config['profiling']['enabled']:
             #     options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
@@ -82,11 +84,17 @@ class Experiment:
 
                 # Evaluate performance on the different datasets and print some results on console
                 # Also check stopping critera
-                if epoch % self.info_config['calc_performance_every'] == 0:
-                    self.nn.nn_data.retrieve_metrics(sess, epoch)
-                    self.nn.nn_data.print_metrics()
-                    if self.nn.nn_data.metric_dict['tr']['vfe'][-1] < min_error:
-                        break
+                self.nn.nn_data.retrieve_metrics(sess, epoch)
+                self.nn.nn_data.print_metrics()
+                if self.nn.nn_data.metric_dict['tr']['vfe'][-1] < min_error:
+                    break
+
+                # Only one data_key can be recorded..
+                if self.nn.nn_data.metric_dict['va']['vfe'][-1] < min_va:
+                    for data_key in self.info_config['record_dataset']:
+                        sample_loss = l_data.run(sess, self.nn.sample_loss, data_key, shuffle=False, feed_t=True, is_training=False)[0]
+                        min_va = self.nn.nn_data.metric_dict['va']['vfe'][-1]
+                        print(min_va)
 
                 # Optionally store profiling results of this epoch in files
                 # if self.info_config['profiling']['enabled']:
@@ -107,10 +115,15 @@ class Experiment:
                     if self.info_config['tensorboard']['graph']:
                         writer.add_graph(sess.graph)
 
+
                 # Train one full epoch
                 l_data.run(sess, self.nn.train_op, 'tr', shuffle=True, feed_t=True, is_training=True)
 
+
             model_saver.save(sess, model_path)
+            if len(sample_loss) is not None:
+                np.save('../testlosses/' + self.info_config['filename'] + '_' + str(run), sample_loss)
+
         writer.close()
         return self.nn.nn_data, self.l_data.transfer_idcs
 
